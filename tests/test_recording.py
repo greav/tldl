@@ -146,3 +146,22 @@ def test_a_recording_that_never_started_leaves_no_folder(tmp_path):
 
     assert exit_status == 1
     assert recordings(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    ("what_is_there", "reason"),
+    [("nothing", "No such file or directory"), ("a file that is not a program", "Permission denied")],
+)
+def test_a_capture_program_that_cannot_be_launched_fails_as_a_recording_that_never_started(
+    tmp_path, what_is_there, reason
+):
+    capture_program = tmp_path / "not-a-capture-program"
+    if what_is_there == "a file that is not a program":
+        capture_program.write_text("mic track, system track")
+
+    exit_status, output, errors = finish(start_record(tmp_path, capture_program))
+
+    assert exit_status == 1
+    assert errors == f"Recording failed: the capture program {capture_program} could not be launched: {reason}.\n"
+    assert output == ""
+    assert recordings(tmp_path) == []
