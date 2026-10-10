@@ -34,7 +34,7 @@ def start_recording(home: Path, *arguments: str):
     return record
 
 
-def make_recording(home: Path, *arguments: str) -> None:
+def record_and_stop(home: Path, *arguments: str) -> None:
     """Run `tldl record` and stop it with the stop signal once capture has started."""
     record = start_recording(home, *arguments)
     record.send_signal(signal.SIGINT)
@@ -54,7 +54,7 @@ def names_by_date_and_time(before: datetime, after: datetime) -> set[str]:
 
 def test_a_recording_is_a_folder_under_the_recordings_root_named_by_date_and_time(tmp_path):
     before = datetime.now()
-    make_recording(tmp_path)
+    record_and_stop(tmp_path)
     after = datetime.now()
 
     [recording] = recordings(tmp_path)
@@ -77,7 +77,7 @@ def test_a_recording_is_a_folder_under_the_recordings_root_named_by_date_and_tim
 )
 def test_a_title_is_appended_to_the_folder_name_as_a_slug(tmp_path, title, ending):
     before = datetime.now()
-    make_recording(tmp_path, title)
+    record_and_stop(tmp_path, title)
     after = datetime.now()
 
     [recording] = recordings(tmp_path)
@@ -90,12 +90,12 @@ def test_a_second_recording_in_the_same_minute_leaves_the_first_untouched(tmp_pa
     if seconds_left_in_the_minute < 5:
         time.sleep(seconds_left_in_the_minute)
 
-    make_recording(tmp_path)
+    record_and_stop(tmp_path)
     [first] = recordings(tmp_path)
     (first / "mic.flac").write_text("the first mic track")
     (first / "system.flac").write_text("the first system track")
-    make_recording(tmp_path)
-    make_recording(tmp_path)
+    record_and_stop(tmp_path)
+    record_and_stop(tmp_path)
 
     assert [recording.name for recording in recordings(tmp_path)] == [
         first.name,
@@ -109,7 +109,7 @@ def test_a_second_recording_in_the_same_minute_leaves_the_first_untouched(tmp_pa
 
 def test_the_metadata_file_holds_the_start_time_the_track_starts_and_the_output_route(tmp_path):
     before = datetime.now().astimezone().replace(microsecond=0)
-    make_recording(tmp_path)
+    record_and_stop(tmp_path)
     after = datetime.now().astimezone()
 
     [recording] = recordings(tmp_path)

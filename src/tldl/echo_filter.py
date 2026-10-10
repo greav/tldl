@@ -48,7 +48,7 @@ def echoes(me: Sequence[Segment], others: Sequence[Segment]) -> list[bool]:
             return False
 
         def is_copy_of(said: Sequence[str]) -> bool:
-            return _in_order(my_words, said) / len(my_words) >= CONTAINMENT
+            return _count_in_order(my_words, said) / len(my_words) >= CONTAINMENT
 
         for first, theirs in enumerate(others):
             if not theirs.start - STARTS_TOGETHER <= mine.start <= theirs.end + FOLLOWS_WITHIN:
@@ -87,7 +87,7 @@ def _words(text: str) -> list[str]:
     return re.findall(r"\w+", re.sub("['’]", "", text.casefold()).replace("ё", "е"))
 
 
-def _in_order(mine: Sequence[str], theirs: Sequence[str]) -> int:
+def _count_in_order(mine: Sequence[str], theirs: Sequence[str]) -> int:
     """How many words of `mine` appear in `theirs` in the same order: the longest common subsequence."""
     longest = [0] * (len(theirs) + 1)
     for word in mine:

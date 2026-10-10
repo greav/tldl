@@ -62,5 +62,5 @@ def _end_of_speech(sentence) -> float:
     Not when the sentence does: the speech model writes a sentence's full stop only once it hears the
     next sentence begin, so the sentence's own end lies as far past its last word as the pause lasted.
     """
-    words = [token.end for token in sentence.tokens if any(character.isalnum() for character in token.text)]
-    return max(words, default=sentence.end)
+    word_ends = [token.end for token in sentence.tokens if any(character.isalnum() for character in token.text)]
+    return max(word_ends, default=sentence.end)
