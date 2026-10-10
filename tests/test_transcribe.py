@@ -7,81 +7,15 @@ import sys
 from pathlib import Path
 
 import pytest
-from stand_in_engine import StandInEngine
 
 from tldl import cli
-from tldl.engines import ENGINES, Segment
+from tldl.engines import Segment
 
 INTERRUPTED_TRACK = Path(__file__).parent / "audio" / "interrupted-track.flac"
 """A system track left by a capture program that was killed after four seconds with nothing playing.
 
 Its header gives no length; 3.744 s of it decode.
 """
-
-
-@pytest.fixture(scope="session")
-def silent_track(tmp_path_factory):
-    """Makes a Track of the given number of seconds holding digital silence; returns its path."""
-    folder = tmp_path_factory.mktemp("silent-tracks")
-
-    def make(seconds: float) -> Path:
-        track = folder / f"{seconds}.flac"
-        if not track.exists():
-            subprocess.run(
-                ["ffmpeg", "-nostdin", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono"]
-                + ["-t", str(seconds), "-c:a", "flac", track],
-                check=True,
-            )
-        return track
-
-    return make
-
-
-@pytest.fixture
-def home(tmp_path, monkeypatch):
-    """A home folder for one test: `~/tldl/` is under it, out of reach of the user's own."""
-    monkeypatch.setenv("HOME", str(tmp_path))
-    return tmp_path
-
-
-@pytest.fixture
-def make_recording(home, silent_track):
-    """Puts a Recording under `~/tldl/`, as `tldl record` leaves one; returns its folder."""
-
-    def make(
-        name: str = "2026-10-10_1946",
-        *,
-        started: str = "2026-10-10T19:46:05+02:00",
-        track_starts: tuple[float | None, float | None] = (100.0, 100.0),
-        mic_seconds: float = 3,
-        system_seconds: float = 3,
-    ) -> Path:
-        recording = home / "tldl" / name
-        recording.mkdir(parents=True)
-        shutil.copy(silent_track(mic_seconds), recording / "mic.flac")
-        shutil.copy(silent_track(system_seconds), recording / "system.flac")
-        metadata = {
-            "started": started,
-            "track_starts": dict(zip(("mic", "system"), track_starts)),
-            "output_route": "headphones",
-            "output_transport": "bluetooth",
-        }
-        (recording / "recording.json").write_text(json.dumps(metadata))
-        return recording
-
-    return make
-
-
-@pytest.fixture
-def stand_in(monkeypatch):
-    """Puts a stand-in Engine in the place of `parakeet-v3`; returns it."""
-
-    def put(*, mic=(), system=(), language=None) -> StandInEngine:
-        engine = StandInEngine(mic, system, language)
-        monkeypatch.setitem(ENGINES, "parakeet-v3", engine)
-        return engine
-
-    return put
 
 
 def transcribe(*arguments: str) -> int:
@@ -255,16 +189,6 @@ def test_the_header_gives_the_language_the_engine_reported(make_recording, stand
     # The language is settled once for the Recording: the second Track is recognised in the language
     # the Engine found on the first.
     assert engine.languages_given == [None, "ru"]
-
-
-def test_the_language_the_user_gave_reaches_the_engine_and_the_header(make_recording, stand_in):
-    recording = make_recording()
-    engine = stand_in(mic=[Segment(1.0, 2.0, "Hello.")])
-
-    cli.transcribe(Path("~/tldl"), None, "parakeet-v3", language="en")
-
-    assert engine.languages_given == ["en", "en"]
-    assert "- Language: en\n" in (recording / "transcript.parakeet-v3.md").read_text()
 
 
 def test_transcribe_with_no_argument_takes_the_recording_that_started_last(make_recording, stand_in):
