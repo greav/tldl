@@ -17,12 +17,13 @@ func check(_ status: OSStatus, _ action: String) throws {
 func readProperty<Value>(
     _ selector: AudioObjectPropertySelector,
     of object: AudioObjectID,
+    scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
     startingFrom initial: Value,
     to action: String
 ) throws -> Value {
     var address = AudioObjectPropertyAddress(
         mSelector: selector,
-        mScope: kAudioObjectPropertyScopeGlobal,
+        mScope: scope,
         mElement: kAudioObjectPropertyElementMain
     )
     var size = UInt32(MemoryLayout<Value>.size)

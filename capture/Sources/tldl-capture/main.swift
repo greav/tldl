@@ -35,6 +35,8 @@ do {
     let systemTap = try SystemTap()
     let micTrack = try TrackWriter(device: try defaultMicrophone(), path: micTrackPath)
     let systemTrack = try TrackWriter(device: systemTap.device, path: systemTrackPath)
+    micTrack.onFirstAudio = { report("track-started track=mic host-time=\(String(format: "%.6f", $0))") }
+    systemTrack.onFirstAudio = { report("track-started track=system host-time=\(String(format: "%.6f", $0))") }
 
     var stopping = false
     for source in stopSources {
@@ -52,6 +54,8 @@ do {
     try micTrack.start()
     try systemTrack.start()
     report("started")
+    let outputRoute = currentOutputRoute()
+    report("output-route route=\(outputRoute.route) transport=\(outputRoute.transport)")
 } catch let error as CaptureError {
     fail(error.reason)
 }
