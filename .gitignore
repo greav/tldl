@@ -1,2 +1,14 @@
 .scratch/
 settings.local.json
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+dist/
+
+# Swift build output
+capture/.build/
+
+# The capture binary, built by `make` and shipped inside the Python package
+src/tldl/bin/
