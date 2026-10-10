@@ -334,9 +334,10 @@ def test_transcribe_fails_with_the_reason_when_ffmpeg_is_missing(make_recording,
 
 def test_tldl_starts_without_loading_speech_recognition():
     # Every Engine is named when `tldl` starts; none may bring its speech recognition library along
-    # until it runs. Both `parakeet-mlx` and `mlx-whisper` are built on `mlx`.
+    # until it runs. Both `parakeet-mlx` and `mlx-whisper` are built on `mlx`, and `whisper-large-v3`
+    # finds the speech on a Track with `torch`.
     loaded = subprocess.run(
-        [sys.executable, "-c", "import sys, tldl.cli; print('mlx' in sys.modules)"],
+        [sys.executable, "-c", "import sys, tldl.cli; print('mlx' in sys.modules or 'torch' in sys.modules)"],
         capture_output=True,
         text=True,
         check=True,

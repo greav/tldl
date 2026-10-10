@@ -7,11 +7,13 @@ here costs nothing until it runs.
 
 from tldl.engines.parakeet import Parakeet
 from tldl.engines.seam import Engine, Segment
+from tldl.engines.whisper import Whisper
 
 __all__ = ["DEFAULT_ENGINE", "ENGINES", "Engine", "Segment"]
 
 ENGINES: dict[str, Engine] = {
     "parakeet-v3": Parakeet("mlx-community/parakeet-tdt-0.6b-v3"),
+    "whisper-large-v3": Whisper("mlx-community/whisper-large-v3-mlx"),
 }
 """Every Engine, under the name that chooses it and that its Transcripts carry in their file names."""
 
