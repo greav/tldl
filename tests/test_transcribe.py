@@ -231,6 +231,29 @@ def test_transcribe_with_an_argument_takes_the_recording_named(make_recording, s
     assert not (latest / "transcript.parakeet-v3.md").exists()
 
 
+@pytest.mark.parametrize(
+    ("run_from", "argument"),
+    [
+        ("2026-10-09_1000_retro", "."),
+        ("2026-10-10_1946", "../2026-10-09_1000_retro"),
+        ("..", "tldl/2026-10-09_1000_retro"),
+    ],
+)
+def test_transcribe_takes_a_relative_path_to_the_recordings_folder(
+    make_recording, stand_in, monkeypatch, run_from, argument
+):
+    named = make_recording("2026-10-09_1000_retro", started="2026-10-09T10:00:12+02:00")
+    latest = make_recording("2026-10-10_1946", started="2026-10-10T19:46:05+02:00")
+    stand_in(mic=[Segment(1.0, 2.0, "Hello.")])
+    monkeypatch.chdir(named.parent / run_from)
+
+    exit_status = transcribe(argument)
+
+    assert exit_status == 0
+    assert (named / "transcript.parakeet-v3.md").read_text().startswith("# 2026-10-09_1000_retro\n")
+    assert not (latest / "transcript.parakeet-v3.md").exists()
+
+
 def test_transcribe_says_where_the_transcript_and_the_segments_file_are(make_recording, stand_in, capsys):
     recording = make_recording()
     stand_in()
