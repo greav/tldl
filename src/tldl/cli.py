@@ -9,8 +9,9 @@ from datetime import datetime
 from pathlib import Path
 
 from tldl.capture import Capture
-from tldl.engines import DEFAULT_ENGINE, ENGINES
-from tldl.recording import DEFAULT_RECORDINGS_ROOT, NoRecording, Recording
+from tldl.configuration import UnreadableConfiguration, read_configuration
+from tldl.engines import ENGINES
+from tldl.recording import NoRecording, Recording
 from tldl.status_line import status_line
 from tldl.track import UnreadableTrack, track_length
 from tldl.transcript import build_transcript, render_segments_file, render_transcript
@@ -28,10 +29,26 @@ def main(command_line: list[str] | None = None) -> int:
     transcribe_command.add_argument(
         "recording", nargs="?", help="the Recording's name or its folder; without it, the latest Recording"
     )
+    transcribe_command.add_argument(
+        "--engine", metavar="NAME", help=f"the Engine to use for this run: {', '.join(ENGINES)}"
+    )
+    transcribe_command.add_argument(
+        "--lang", metavar="CODE", help="the language spoken, as a code such as en or ru, for this run"
+    )
     arguments = parser.parse_args(command_line)
+    try:
+        configuration = read_configuration()
+    except UnreadableConfiguration as problem:
+        print(f"{problem}.", file=sys.stderr)
+        return 1
     if arguments.command == "transcribe":
-        return transcribe(DEFAULT_RECORDINGS_ROOT, arguments.recording, DEFAULT_ENGINE, language=None)
-    return record(DEFAULT_RECORDINGS_ROOT, arguments.title)
+        return transcribe(
+            configuration.recordings_root,
+            arguments.recording,
+            arguments.engine or configuration.engine,
+            arguments.lang or configuration.language,
+        )
+    return record(configuration.recordings_root, arguments.title)
 
 
 def record(recordings_root: Path, title: str | None) -> int:
@@ -82,6 +99,10 @@ def transcribe(recordings_root: Path, name: str | None, engine_name: str, langua
     `name` chooses the Recording; None is the latest one under `recordings_root`. `language` is the
     language the user gave; None leaves it to the Engine.
     """
+    if engine_name not in ENGINES:
+        known = ", ".join(ENGINES)
+        print(f"Cannot transcribe: there is no Engine named {engine_name}; the Engines are {known}.", file=sys.stderr)
+        return 1
     try:
         recording = Recording.latest(recordings_root) if name is None else Recording.named(recordings_root, name)
         mic_offset, system_offset = recording.track_offsets
