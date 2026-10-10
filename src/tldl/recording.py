@@ -13,6 +13,8 @@ The metadata file is JSON with these keys:
     output_route      what the computer was playing sound through at the start: `speakers`,
                       `headphones` or `unknown`
     output_transport  how that output device was connected, the fact `output_route` was judged from
+    microphone        the microphone the mic track was taken from: its `name` as the system calls it, its
+                      `transport` (how it was connected) and its `sample_rate` in hertz
 
 The file is written when the Recording starts and again each time the capture program reports one of
 these, so it is there whatever ends the Recording. A value is null until it has been reported.
@@ -80,6 +82,7 @@ class Recording:
                     "track_starts": {"mic": None, "system": None},
                     "output_route": None,
                     "output_transport": None,
+                    "microphone": None,
                 },
             )
             recording._write_metadata()
@@ -170,6 +173,11 @@ class Recording:
         """Record what the computer was playing sound through when the Recording started."""
         self._metadata["output_route"] = route
         self._metadata["output_transport"] = transport
+        self._write_metadata()
+
+    def note_microphone(self, name: str, transport: str | None, sample_rate: int | None) -> None:
+        """Record which microphone the mic track is taken from."""
+        self._metadata["microphone"] = {"name": name, "transport": transport, "sample_rate": sample_rate}
         self._write_metadata()
 
     def discard(self) -> None:

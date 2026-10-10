@@ -32,6 +32,7 @@ func currentOutputRoute() -> OutputRoute {
         return OutputRoute(route: "unknown", transport: "other")
     }
 
+    let route: String
     switch transport {
     case kAudioDeviceTransportTypeBuiltIn:
         let dataSource = try? readProperty(
@@ -41,28 +42,20 @@ func currentOutputRoute() -> OutputRoute {
             startingFrom: UInt32(0),
             to: "read the output device's data source"
         )
-        let route =
+        route =
             switch dataSource {
             case fourCharacterCode("ispk"): "speakers"
             case fourCharacterCode("hdpn"): "headphones"
             default: "unknown"
             }
-        return OutputRoute(route: route, transport: "built-in")
     case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:
-        return OutputRoute(route: "headphones", transport: "bluetooth")
-    case kAudioDeviceTransportTypeHDMI:
-        return OutputRoute(route: "speakers", transport: "hdmi")
-    case kAudioDeviceTransportTypeDisplayPort:
-        return OutputRoute(route: "speakers", transport: "displayport")
-    case kAudioDeviceTransportTypeAirPlay:
-        return OutputRoute(route: "speakers", transport: "airplay")
-    case kAudioDeviceTransportTypeUSB:
-        return OutputRoute(route: "unknown", transport: "usb")
-    case kAudioDeviceTransportTypeVirtual, kAudioDeviceTransportTypeAggregate:
-        return OutputRoute(route: "unknown", transport: "virtual")
+        route = "headphones"
+    case kAudioDeviceTransportTypeHDMI, kAudioDeviceTransportTypeDisplayPort, kAudioDeviceTransportTypeAirPlay:
+        route = "speakers"
     default:
-        return OutputRoute(route: "unknown", transport: "other")
+        route = "unknown"
     }
+    return OutputRoute(route: route, transport: transportWord(transport))
 }
 
 /// A Core Audio four-character code, such as a data source's, as the number it travels as.

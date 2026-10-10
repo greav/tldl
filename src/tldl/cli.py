@@ -7,6 +7,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import unquote
 
 from tldl.capture import Capture, CaptureNotLaunched
 from tldl.configuration import UnreadableConfiguration, read_configuration
@@ -73,6 +74,13 @@ def record(recordings_root: Path, title: str | None) -> int:
             recording.note_track_start(event.fields["track"], float(event.fields["host-time"]))
         elif event.name == "output-route":
             recording.note_output_route(event.fields["route"], event.fields.get("transport"))
+        elif event.name == "microphone":
+            sample_rate = event.fields.get("sample-rate")
+            recording.note_microphone(
+                unquote(event.fields["name"]),
+                event.fields.get("transport"),
+                int(sample_rate) if sample_rate else None,
+            )
         elif event.name == "level" and started_at is not None:
             elapsed = time.monotonic() - started_at
             levels = (float(event.fields.get(track, 0)) for track in ("mic", "system"))

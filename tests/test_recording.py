@@ -13,16 +13,18 @@ from test_record import STAND_IN_CAPTURE, finish, start_record
 REPORTED_BY_THE_CAPTURE_PROGRAM = "\n".join(
     [
         "output-route route=headphones transport=bluetooth",
+        "microphone name=MacBook%20Pro%20Microphone transport=built-in sample-rate=48000",
         "track-started track=mic host-time=100.250000",
         "track-started track=system host-time=100.500000",
     ]
 )
-"""What the stand-in capture program reports about the Track starts and the output route."""
+"""What the stand-in capture program reports about the Track starts, the output route and the microphone."""
 
 METADATA_OF_THAT_REPORT = {
     "track_starts": {"mic": 100.25, "system": 100.5},
     "output_route": "headphones",
     "output_transport": "bluetooth",
+    "microphone": {"name": "MacBook Pro Microphone", "transport": "built-in", "sample_rate": 48000},
 }
 """What the metadata file holds once all of that was reported, apart from the Recording's start time."""
 
@@ -116,6 +118,28 @@ def test_the_metadata_file_holds_the_start_time_the_track_starts_and_the_output_
     metadata = json.loads((recording / "recording.json").read_text())
     assert before <= datetime.fromisoformat(metadata.pop("started")) <= after
     assert metadata == METADATA_OF_THAT_REPORT
+
+
+def test_the_metadata_file_names_the_microphone_the_recording_started_on(tmp_path):
+    record_and_stop(tmp_path)
+
+    [recording] = recordings(tmp_path)
+    metadata = json.loads((recording / "recording.json").read_text())
+    assert metadata["microphone"] == {
+        "name": "MacBook Pro Microphone",
+        "transport": "built-in",
+        "sample_rate": 48000,
+    }
+
+
+def test_the_microphone_is_unknown_when_the_capture_program_did_not_report_it(tmp_path):
+    record = start_record(tmp_path, STAND_IN_CAPTURE)
+    record.stdout.readline()
+    record.send_signal(signal.SIGINT)
+    finish(record)
+
+    [recording] = recordings(tmp_path)
+    assert json.loads((recording / "recording.json").read_text())["microphone"] is None
 
 
 def test_the_metadata_is_already_on_disk_when_a_recording_is_killed(tmp_path):
