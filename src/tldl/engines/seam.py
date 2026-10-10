@@ -22,6 +22,14 @@ class Segment:
 
 
 class Engine(Protocol):
+    def accepts_language(self, language: str) -> bool:
+        """Whether `language` is one the Engine can be given to recognise a Track in.
+
+        Asked before any Track is read, so the answer costs no speech recognition. An Engine that
+        takes no language accepts every one, because it ignores it.
+        """
+        ...
+
     def detect_language(self, tracks: Sequence[Path]) -> str | None:
         """The language spoken on `tracks`, as a code such as `en` or `ru`.
 

@@ -29,6 +29,9 @@ class Parakeet:
         self._weights = weights
         self._model = None
 
+    def accepts_language(self, language: str) -> bool:
+        return True
+
     def detect_language(self, tracks: Sequence[Path]) -> str | None:
         return None
 

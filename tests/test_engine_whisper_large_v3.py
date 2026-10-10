@@ -45,3 +45,12 @@ def test_whisper_large_v3_hears_nothing_on_a_track_with_no_speech():
 
     assert engine.recognise(NO_SPEECH, None) == []
     assert engine.detect_language([NO_SPEECH]) is None
+
+
+@pytest.mark.engine
+def test_whisper_large_v3_accepts_a_language_by_its_code_or_its_name_and_no_other():
+    engine = ENGINES["whisper-large-v3"]
+
+    assert engine.accepts_language("ru")
+    assert engine.accepts_language("Russian")
+    assert not engine.accepts_language("xx")

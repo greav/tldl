@@ -10,19 +10,28 @@ class StandInEngine:
     """An Engine that hears on each Track exactly the Segments it was prepared with.
 
     `mic` and `system` are the Segments of the mic track and of the system track. `language` is the
-    language the Engine detects; None for an Engine that detects none. Afterwards `detected_on` holds
-    the Tracks of each time it was asked for the language, `tracks` the Tracks it was given to
+    language the Engine detects; None for an Engine that detects none. `accepts` holds the languages
+    the Engine can be given; None for an Engine that accepts every one. Afterwards `detected_on`
+    holds the Tracks of each time it was asked for the language, `tracks` the Tracks it was given to
     recognise and `languages_given` the language it was given with each.
     """
 
     def __init__(
-        self, mic: Sequence[Segment] = (), system: Sequence[Segment] = (), language: str | None = None
+        self,
+        mic: Sequence[Segment] = (),
+        system: Sequence[Segment] = (),
+        language: str | None = None,
+        accepts: Sequence[str] | None = None,
     ) -> None:
         self._segments = {"mic.flac": list(mic), "system.flac": list(system)}
         self._language = language
+        self._accepts = accepts
         self.detected_on: list[list[Path]] = []
         self.tracks: list[Path] = []
         self.languages_given: list[str | None] = []
+
+    def accepts_language(self, language: str) -> bool:
+        return self._accepts is None or language in self._accepts
 
     def detect_language(self, tracks: Sequence[Path]) -> str | None:
         self.detected_on.append(list(tracks))

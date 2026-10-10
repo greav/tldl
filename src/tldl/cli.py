@@ -122,6 +122,13 @@ def transcribe(recordings_root: Path, name: str | None, engine_name: str, langua
         return 1
 
     engine = ENGINES[engine_name]
+    if language is not None and not engine.accepts_language(language):
+        print(
+            f"Cannot transcribe: the Engine {engine_name} knows no language {language};"
+            " a language is given as a code such as en or ru.",
+            file=sys.stderr,
+        )
+        return 1
     print(f"Transcribing {recording.folder.name} with {engine_name}.", flush=True)
     # A language is settled once for the Recording: what the user gave, or else what the Engine hears
     # on the two Tracks taken together.

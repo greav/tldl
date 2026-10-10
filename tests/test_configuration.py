@@ -102,6 +102,22 @@ def test_the_lang_flag_gives_the_language_to_the_engine_and_to_the_transcript_he
     assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] == "ru"
 
 
+def test_a_language_the_engine_does_not_know_fails_before_the_engine_reads_a_track(make_recording, stand_in, capsys):
+    recording = make_recording()
+    engine = stand_in("stand-in-large", accepts=["en", "ru"])
+
+    exit_status = transcribe("--engine", "stand-in-large", "--lang", "xx")
+
+    assert exit_status == 1
+    assert (
+        "Cannot transcribe: the Engine stand-in-large knows no language xx; a language is given as a code such as"
+        " en or ru.\n"
+    ) == capsys.readouterr().err
+    assert engine.detected_on == []
+    assert engine.tracks == []
+    assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
+
+
 def test_the_configuration_file_sets_the_default_engine(make_recording, stand_in, configure):
     recording = make_recording()
     default = stand_in("parakeet-v3")

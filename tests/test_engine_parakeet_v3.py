@@ -28,3 +28,8 @@ def test_parakeet_v3_hears_each_sentence_as_a_segment_where_it_was_spoken():
     assert second.start == pytest.approx(6.07, abs=0.5)
     assert second.end == pytest.approx(8.73, abs=0.5)
     assert ENGINES["parakeet-v3"].detect_language([SPEECH]) is None
+
+
+@pytest.mark.engine
+def test_parakeet_v3_accepts_any_language_because_it_ignores_it():
+    assert ENGINES["parakeet-v3"].accepts_language("xx")
