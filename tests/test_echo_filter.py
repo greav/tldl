@@ -200,6 +200,24 @@ def test_the_users_line_is_kept_when_the_others_start_repeating_it_before_it_end
     assert removed_texts(mic, system) == []
 
 
+def test_the_users_line_is_kept_when_the_others_repeat_it_and_their_line_before_it_shares_a_word():
+    # The others asked, the user answered, and the others began saying the answer back before the
+    # user had finished, not quite in the user's words. Their question holds the one word of the
+    # answer that their repetition lacks, "I", and that word does not make the answer a copy.
+    mic = [Segment(10.0, 12.5, "I will send the report tomorrow.")]
+    system = [
+        Segment(8.0, 9.6, "And when will I get it?"),
+        Segment(11.0, 13.0, "You will send the report tomorrow, great."),
+    ]
+
+    assert rendered_lines(mic, system) == [
+        "[00:00:08] **Others:** And when will I get it?",
+        "[00:00:10] **Me:** I will send the report tomorrow.",
+        "[00:00:11] **Others:** You will send the report tomorrow, great.",
+    ]
+    assert removed_texts(mic, system) == []
+
+
 def test_russian_words_are_compared_without_case_punctuation_or_the_dots_on_yo():
     # The Engine writes "ё" in one place and "е" in another for the same word.
     mic = [Segment(10.2, 13.0, "давайте ещё раз посмотрим на пул реквест"), Segment(14.1, 14.8, "Все понятно")]
