@@ -72,8 +72,8 @@ def make_recording(home, silent_track):
 def stand_in(monkeypatch):
     """Puts a stand-in Engine under the name `name`, by default in the place of `parakeet-v3`; returns it."""
 
-    def put(name: str = "parakeet-v3", *, mic=(), system=(), language=None) -> StandInEngine:
-        engine = StandInEngine(mic, system, language)
+    def put(name: str = "parakeet-v3", *, mic=(), system=(), language=None, accepts=None) -> StandInEngine:
+        engine = StandInEngine(mic, system, language, accepts)
         monkeypatch.setitem(ENGINES, name, engine)
         return engine
 

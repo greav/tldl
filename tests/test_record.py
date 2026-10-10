@@ -47,7 +47,10 @@ def finish(record: subprocess.Popen) -> tuple[int, str, str]:
     finally:
         try:
             os.killpg(record.pid, signal.SIGKILL)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
+            # Nobody is left to clear away. "Not permitted" is how macOS says so while a process of
+            # the group is dead and not yet reaped: after a test killed the whole group, the capture
+            # program is an orphan that the system reaps a moment later.
             pass
     return record.returncode, output, errors
 

@@ -36,8 +36,9 @@ def echoes(me: Sequence[Segment], others: Sequence[Segment]) -> list[bool]:
 
     A Segment of `me` is a copy when it starts during a Segment of `others` or shortly after it, and
     most of its words appear in the same order in what the others said from that Segment until the
-    copy ended. The match has to begin in that Segment: a Segment of `me` whose words are found only
-    in what the others said after it started is the user's own.
+    copy ended. What the others began to say after the Segment of `me` began can complete that match
+    and cannot make it: when most of the Segment's words are found in that later speech alone, the
+    user said them first and the others are repeating them.
     """
     said_by_others = [_words(segment.text) for segment in others]
 
@@ -45,6 +46,10 @@ def echoes(me: Sequence[Segment], others: Sequence[Segment]) -> list[bool]:
         my_words = _words(mine.text)
         if not my_words:
             return False
+
+        def is_copy_of(said: Sequence[str]) -> bool:
+            return _count_in_order(my_words, said) / len(my_words) >= CONTAINMENT
+
         for first, theirs in enumerate(others):
             if not theirs.start - STARTS_TOGETHER <= mine.start <= theirs.end + FOLLOWS_WITHIN:
                 continue
@@ -54,16 +59,19 @@ def echoes(me: Sequence[Segment], others: Sequence[Segment]) -> list[bool]:
                 continue
             # The Engine cuts the same speech into Segments differently on each Track, so the copy
             # is compared with everything the others said from this Segment until the copy ended.
-            said_later = [
-                word
+            until_my_end = [
+                (later, words)
                 for later, words in zip(others[first + 1 :], said_by_others[first + 1 :])
                 if later.start < mine.end
+            ]
+            said_until_my_end = said_by_others[first] + [word for _, words in until_my_end for word in words]
+            said_after_my_start = [
+                word
+                for later, words in until_my_end
+                if later.start > mine.start + STARTS_TOGETHER
                 for word in words
             ]
-            matched = _in_order(my_words, said_by_others[first] + said_later)
-            # If what the others said later matches as well without this Segment, the match does
-            # not begin here.
-            if matched / len(my_words) >= CONTAINMENT and matched > _in_order(my_words, said_later):
+            if is_copy_of(said_until_my_end) and not is_copy_of(said_after_my_start):
                 return True
         return False
 
@@ -79,7 +87,7 @@ def _words(text: str) -> list[str]:
     return re.findall(r"\w+", re.sub("['’]", "", text.casefold()).replace("ё", "е"))
 
 
-def _in_order(mine: Sequence[str], theirs: Sequence[str]) -> int:
+def _count_in_order(mine: Sequence[str], theirs: Sequence[str]) -> int:
     """How many words of `mine` appear in `theirs` in the same order: the longest common subsequence."""
     longest = [0] * (len(theirs) + 1)
     for word in mine:

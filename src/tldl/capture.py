@@ -92,14 +92,24 @@ def parse_event(line: str) -> Event:
     return Event(name, fields, text)
 
 
+class CaptureNotLaunched(Exception):
+    """The capture program could not be launched. The message says why in words fit for the user."""
+
+
 class Capture:
     """A running capture program, writing the two Tracks to the given paths."""
 
     def __init__(self, mic_track: Path, system_track: Path) -> None:
+        """Launch the capture program. Raises CaptureNotLaunched when there is none to launch."""
         program = os.environ.get(CAPTURE_PROGRAM_VARIABLE) or PACKAGED_CAPTURE_PROGRAM
-        self._process = subprocess.Popen(
-            [program, mic_track, system_track], stdout=subprocess.PIPE, text=True
-        )
+        try:
+            self._process = subprocess.Popen(
+                [program, mic_track, system_track], stdout=subprocess.PIPE, text=True
+            )
+        except OSError as problem:
+            raise CaptureNotLaunched(
+                f"the capture program {program} could not be launched: {problem.strerror}"
+            ) from problem
 
     def events(self) -> Iterator[Event]:
         """The capture program's events as they arrive, until it closes its output."""

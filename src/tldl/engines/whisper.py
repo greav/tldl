@@ -55,6 +55,13 @@ class Whisper:
         # twice: for the language and to be recognised.
         self._passages: dict[Path, list[Passage]] = {}
 
+    def accepts_language(self, language: str) -> bool:
+        # `mlx-whisper` takes a language by its code or by its English name, in any case, and
+        # raises on any other in the middle of recognising a Track.
+        from mlx_whisper.tokenizer import LANGUAGES, TO_LANGUAGE_CODE
+
+        return language.lower() in LANGUAGES or language.lower() in TO_LANGUAGE_CODE
+
     def detect_language(self, tracks: Sequence[Path]) -> str | None:
         import numpy
 

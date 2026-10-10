@@ -115,10 +115,17 @@ class Recording:
     def named(cls, recordings_root: Path, name: str) -> "Recording":
         """The Recording called `name` under `recordings_root`, or the one in the folder `name`."""
         root = recordings_root.expanduser()
-        for folder in (root / name, Path(name)):
-            if folder.is_dir():
+        not_a_recording = None
+        # The path is resolved, so that one such as `.` gives the folder under its own name.
+        for folder in (root / name, Path(name).resolve()):
+            if not folder.is_dir():
+                continue
+            try:
                 return cls.open(folder)
-        raise NoRecording(f"there is no Recording named {name} under {root}")
+            except NoRecording as problem:
+                # `.` read as a name is the Recordings root itself: the path is still to be tried.
+                not_a_recording = problem
+        raise not_a_recording or NoRecording(f"there is no Recording named {name} under {root}")
 
     @property
     def started(self) -> datetime:
