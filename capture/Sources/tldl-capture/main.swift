@@ -49,6 +49,7 @@ func written(_ level: Float32) -> String {
 do {
     let systemTap = try SystemTap()
     let microphone = try defaultMicrophone()
+    let microphoneDescription = try describeMicrophone(microphone)
     let micTrack = try TrackWriter(device: microphone, path: micTrackPath)
     let systemTrack = try TrackWriter(device: systemTap.device, path: systemTrackPath)
     micTrack.onFirstAudio = { report("track-started track=mic host-time=\(String(format: "%.6f", $0))") }
@@ -86,6 +87,7 @@ do {
     report("started")
     let outputRoute = currentOutputRoute()
     report("output-route route=\(outputRoute.route) transport=\(outputRoute.transport)")
+    report(microphoneDescription.event)
 
     levelTimer.schedule(deadline: .now() + levelInterval, repeating: levelInterval)
     levelTimer.setEventHandler {

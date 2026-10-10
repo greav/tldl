@@ -48,3 +48,17 @@ func defaultMicrophone() throws -> AudioDeviceID {
     }
     return device
 }
+
+/// How a device is connected, as the contract words it, from its Core Audio transport type.
+func transportWord(_ transport: UInt32) -> String {
+    switch transport {
+    case kAudioDeviceTransportTypeBuiltIn: "built-in"
+    case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: "bluetooth"
+    case kAudioDeviceTransportTypeUSB: "usb"
+    case kAudioDeviceTransportTypeHDMI: "hdmi"
+    case kAudioDeviceTransportTypeDisplayPort: "displayport"
+    case kAudioDeviceTransportTypeAirPlay: "airplay"
+    case kAudioDeviceTransportTypeVirtual, kAudioDeviceTransportTypeAggregate: "virtual"
+    default: "other"
+    }
+}

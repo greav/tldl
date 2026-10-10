@@ -43,6 +43,12 @@ Standard output
         device. `transport` is how that device is connected, the fact the verdict rests on: `built-in`,
         `bluetooth`, `usb`, `hdmi`, `displayport`, `airplay`, `virtual` or `other`.
 
+    microphone name=<name> transport=<word> sample-rate=<hertz>
+        The microphone the mic track is taken from: the system default microphone when capture started.
+        `name` is what the system calls the device, percent-encoded as in a URL, since a value holds no
+        spaces. `transport` is how the device is connected, one of the words `output-route` uses.
+        `sample-rate` is the rate the device delivers audio at, which is also the mic track's.
+
     level mic=<level> system=<level>
         The loudest sample of each Track since the event before this one, as a fraction of full scale
         from 0.0000 to 1.0000. Reported about ten times a second from `started` until capture ends. A
