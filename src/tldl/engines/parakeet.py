@@ -1,14 +1,13 @@
 """The Parakeet Engines, built on `parakeet-mlx`: recognition on this Mac, through MLX.
 
-`parakeet-mlx` reads the Track through `ffmpeg`, which has to be on the PATH. The speech model's weights
-come from Hugging Face the first time the Engine runs and are kept in its cache; from then on the Engine
-runs without the network.
+`parakeet-mlx` reads the Track through `ffmpeg`, which has to be on the PATH.
 """
 
-import sys
+from collections.abc import Sequence
 from pathlib import Path
 
-from tldl.engines.seam import Recognition, Segment
+from tldl.engines.seam import Segment
+from tldl.engines.weights import weights_folder
 
 CHUNK_SECONDS = 120.0
 """How much of a Track goes through the speech model at once. The model attends to all of what it is
@@ -30,37 +29,28 @@ class Parakeet:
         self._weights = weights
         self._model = None
 
-    def recognise(self, track: Path, language: str | None) -> Recognition:
+    def detect_language(self, tracks: Sequence[Path]) -> str | None:
+        return None
+
+    def recognise(self, track: Path, language: str | None) -> list[Segment]:
         if self._model is None:
             self._model = self._load()
         heard = self._model.transcribe(
             track, chunk_duration=CHUNK_SECONDS, overlap_duration=CHUNK_OVERLAP_SECONDS
         )
         # A Segment is a sentence as the speech model punctuated it.
-        segments = [
+        return [
             Segment(sentence.start, _end_of_speech(sentence), text)
             for sentence in heard.sentences
             if (text := sentence.text.strip())
         ]
-        return Recognition(segments)
 
     def _load(self):
         # Imported here and not at the top: loading speech recognition takes seconds, and only a run
         # of this Engine should pay for it.
-        from huggingface_hub import hf_hub_download
-        from huggingface_hub.errors import LocalEntryNotFoundError
         from parakeet_mlx import from_pretrained
 
-        def weights_folder(**how) -> Path:
-            return Path([hf_hub_download(self._weights, file, **how) for file in WEIGHTS_FILES][-1]).parent
-
-        try:
-            # From the cache alone: once the weights are there, nothing asks Hugging Face about them.
-            folder = weights_folder(local_files_only=True)
-        except LocalEntryNotFoundError:
-            print(f"Downloading the speech model {self._weights}, this once.", file=sys.stderr, flush=True)
-            folder = weights_folder()
-        return from_pretrained(str(folder))
+        return from_pretrained(str(weights_folder(self._weights, WEIGHTS_FILES)))
 
 
 def _end_of_speech(sentence) -> float:

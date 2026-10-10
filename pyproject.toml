@@ -5,7 +5,9 @@ description = "Records both sides of a call as two Tracks and turns the Recordin
 requires-python = ">=3.12"
 dependencies = [
     "huggingface-hub>=2.2.0",
+    "mlx-whisper>=0.4.3",
     "parakeet-mlx>=0.5.3",
+    "silero-vad>=6.2.3",
 ]
 
 [project.scripts]

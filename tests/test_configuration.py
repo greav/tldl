@@ -51,8 +51,19 @@ def test_an_unknown_engine_name_fails_with_a_message_listing_the_known_engines(m
     exit_status = transcribe("--engine", "whisper")
 
     assert exit_status == 1
-    assert "there is no Engine named whisper; the Engines are parakeet-v3, stand-in-large" in capsys.readouterr().err
+    assert (
+        "there is no Engine named whisper; the Engines are parakeet-v3, whisper-large-v3, stand-in-large."
+        in capsys.readouterr().err
+    )
     assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
+
+
+def test_the_engines_are_parakeet_v3_and_whisper_large_v3(make_recording, capsys):
+    make_recording()
+
+    transcribe("--engine", "no-such-engine")
+
+    assert "the Engines are parakeet-v3, whisper-large-v3." in capsys.readouterr().err
 
 
 def test_transcribing_one_recording_with_two_engines_leaves_both_transcripts_side_by_side(make_recording, stand_in):
@@ -86,6 +97,7 @@ def test_the_lang_flag_gives_the_language_to_the_engine_and_to_the_transcript_he
 
     assert exit_status == 0
     assert engine.languages_given == ["ru", "ru"]
+    assert engine.detected_on == []
     assert "- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
     assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] == "ru"
 
@@ -126,6 +138,7 @@ def test_the_configuration_file_sets_the_default_language(make_recording, stand_
 
     assert exit_status == 0
     assert engine.languages_given == ["ru", "ru"]
+    assert engine.detected_on == []
     assert "- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
 
 
