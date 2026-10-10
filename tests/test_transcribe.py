@@ -197,11 +197,32 @@ def test_the_segments_file_holds_every_segment_of_both_tracks_with_its_speaker(m
         "language": None,
         "duration": 10.5,
         "segments": [
-            {"speaker": "Others", "start": 1.5, "end": 3.0, "text": "Hello everyone."},
-            {"speaker": "Others", "start": 3.25, "end": 3.5, "text": "Shall we start?"},
-            {"speaker": "Me", "start": 4.0, "end": 5.5, "text": "Привет, слышно меня?"},
+            {"speaker": "Others", "start": 1.5, "end": 3.0, "text": "Hello everyone.", "echo": False},
+            {"speaker": "Others", "start": 3.25, "end": 3.5, "text": "Shall we start?", "echo": False},
+            {"speaker": "Me", "start": 4.0, "end": 5.5, "text": "Привет, слышно меня?", "echo": False},
         ],
     }
+
+
+def test_an_echo_is_left_out_of_the_transcript_and_marked_in_the_segments_file(make_recording, stand_in):
+    # On loudspeakers the microphone heard the others: their words are on the mic track as well.
+    recording = make_recording()
+    stand_in(
+        mic=[Segment(1.2, 2.6, "Hello everyone, shall we start?"), Segment(4.0, 5.5, "Yes, let's start.")],
+        system=[Segment(1.0, 2.5, "Hello everyone, shall we start?")],
+    )
+
+    transcribe()
+
+    assert lines_of(recording / "transcript.parakeet-v3.md") == [
+        "[00:00:01] **Others:** Hello everyone, shall we start?",
+        "[00:00:04] **Me:** Yes, let's start.",
+    ]
+    assert json.loads((recording / "segments.parakeet-v3.json").read_text())["segments"] == [
+        {"speaker": "Others", "start": 1.0, "end": 2.5, "text": "Hello everyone, shall we start?", "echo": False},
+        {"speaker": "Me", "start": 1.2, "end": 2.6, "text": "Hello everyone, shall we start?", "echo": True},
+        {"speaker": "Me", "start": 4.0, "end": 5.5, "text": "Yes, let's start.", "echo": False},
+    ]
 
 
 def test_the_engine_is_given_the_two_tracks_of_the_recording(make_recording, stand_in):
