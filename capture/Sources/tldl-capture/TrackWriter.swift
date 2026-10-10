@@ -9,6 +9,9 @@ final class TrackWriter {
     private var file: ExtAudioFileRef?
     private var ioProc: AudioDeviceIOProcID?
 
+    /// The level of what is being written.
+    let level = LevelMeter()
+
     /// Scratch space for the mono mix, allocated up front because the audio thread must not allocate.
     private let mix: UnsafeMutablePointer<Float32>
     private static let mixCapacity = 4096
@@ -121,6 +124,7 @@ final class TrackWriter {
                     }
                 }
             }
+            level.hear(mix, count: frames)
             var mono = AudioBufferList(
                 mNumberBuffers: 1,
                 mBuffers: AudioBuffer(

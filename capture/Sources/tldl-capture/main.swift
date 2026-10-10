@@ -6,13 +6,15 @@
 import CoreAudio
 import Foundation
 
-/// Reports one event of the contract on standard output.
-func report(_ event: String) {
+/// Reports one event of the contract on standard output. False when nobody is reading it any more.
+@discardableResult
+func report(_ event: String) -> Bool {
     print(event)
-    fflush(stdout)
+    return fflush(stdout) == 0
 }
 
-func fail(_ reason: String, status: Int32 = 1) -> Never {
+/// Ends the program over a mistake in how it was started, which the contract has no event for.
+func fail(_ reason: String, status: Int32) -> Never {
     FileHandle.standardError.write(Data("tldl-capture: \(reason)\n".utf8))
     exit(status)
 }
@@ -30,30 +32,68 @@ let stopSources = stopSignals.map { stopSignal -> DispatchSourceSignal in
     signal(stopSignal, SIG_IGN)
     return DispatchSource.makeSignalSource(signal: stopSignal, queue: .main)
 }
+// Reporting to a reader that is gone would kill the program in the same way.
+signal(SIGPIPE, SIG_IGN)
+
+let levelInterval = 0.1
+let levelTimer = DispatchSource.makeTimerSource(queue: .main)
+
+/// What keeps the Mac from idle sleep while capture runs. The system lets go of it when the program
+/// exits, however it exits.
+var awake: NSObjectProtocol?
+
+func written(_ level: Float32) -> String {
+    String(format: "%.4f", level)
+}
 
 do {
     let systemTap = try SystemTap()
-    let micTrack = try TrackWriter(device: try defaultMicrophone(), path: micTrackPath)
+    let microphone = try defaultMicrophone()
+    let micTrack = try TrackWriter(device: microphone, path: micTrackPath)
     let systemTrack = try TrackWriter(device: systemTap.device, path: systemTrackPath)
 
     var stopping = false
-    for source in stopSources {
-        source.setEventHandler {
-            guard !stopping else { return }
-            stopping = true
-            micTrack.stop()
-            systemTrack.stop()
-            systemTap.remove()
-            exit(0)
+    /// Closes both Tracks and ends the program: as asked, or as a failure when given the reason.
+    func stop(failure: String? = nil) {
+        guard !stopping else { return }
+        stopping = true
+        levelTimer.cancel()
+        micTrack.stop()
+        systemTrack.stop()
+        systemTap.remove()
+        if let failure {
+            report("failed \(failure)")
+            exit(1)
         }
+        exit(0)
+    }
+    for source in stopSources {
+        source.setEventHandler { stop() }
         source.resume()
     }
+    try whenDeviceDisappears(microphone) { stop(failure: "the microphone disappeared") }
 
     try micTrack.start()
     try systemTrack.start()
+    awake = ProcessInfo.processInfo.beginActivity(
+        options: .idleSystemSleepDisabled,
+        reason: "tldl is recording"
+    )
     report("started")
+
+    levelTimer.schedule(deadline: .now() + levelInterval, repeating: levelInterval)
+    levelTimer.setEventHandler {
+        let mic = written(micTrack.level.take())
+        let system = written(systemTrack.level.take())
+        // With nobody reading, nobody can send the stop signal either.
+        if !report("level mic=\(mic) system=\(system)") {
+            stop()
+        }
+    }
+    levelTimer.resume()
 } catch let error as CaptureError {
-    fail(error.reason)
+    report("failed \(error.reason)")
+    exit(1)
 }
 
 dispatchMain()
