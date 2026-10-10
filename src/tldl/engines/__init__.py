@@ -1,8 +1,8 @@
 """The Engines `tldl transcribe` can use, by name.
 
 Adding an Engine is one adapter module beside this file and one entry in `ENGINES`. An adapter imports
-its speech recognition library only when it is first asked to recognise a Track, so naming an Engine
-here costs nothing until it runs.
+its speech recognition library only when it is first asked about a language or a Track, so naming an
+Engine here costs nothing until it is used.
 """
 
 from tldl.engines.parakeet import Parakeet

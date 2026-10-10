@@ -109,10 +109,10 @@ def test_a_language_the_engine_does_not_know_fails_before_the_engine_reads_a_tra
     exit_status = transcribe("--engine", "stand-in-large", "--lang", "xx")
 
     assert exit_status == 1
-    assert (
-        "Cannot transcribe: the Engine stand-in-large knows no language xx; a language is given as a code such as"
-        " en or ru.\n"
-    ) == capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        "Cannot transcribe: the Engine stand-in-large knows no language xx;"
+        " a language is given as a code such as en or ru.\n"
+    )
     assert engine.detected_on == []
     assert engine.tracks == []
     assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
