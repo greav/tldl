@@ -3,28 +3,30 @@
 import argparse
 import signal
 import sys
-import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 
-from tldl.capture import MIC_TRACK_FILE, SYSTEM_TRACK_FILE, Capture
+from tldl.capture import Capture
+from tldl.recording import DEFAULT_RECORDINGS_ROOT, Recording
 from tldl.status_line import status_line
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="tldl")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("record", help="capture the mic track and the system track until Ctrl+C")
-    parser.parse_args()
-    return record()
+    record_command = commands.add_parser(
+        "record", help="capture the mic track and the system track until Ctrl+C"
+    )
+    record_command.add_argument("title", nargs="?", help="a name for the Recording, added to its folder's name")
+    arguments = parser.parse_args()
+    return record(DEFAULT_RECORDINGS_ROOT, arguments.title)
 
 
-def record() -> int:
-    folder = Path(tempfile.mkdtemp(prefix="tldl-", dir=Path.cwd()))
-    mic_track = folder / MIC_TRACK_FILE
-    system_track = folder / SYSTEM_TRACK_FILE
+def record(recordings_root: Path, title: str | None) -> int:
+    recording = Recording.begin(recordings_root, datetime.now().astimezone(), title)
 
-    capture = Capture(mic_track, system_track)
+    capture = Capture(recording.mic_track, recording.system_track)
     signal.signal(signal.SIGINT, lambda signum, frame: capture.stop())
 
     started_at = None
@@ -34,6 +36,10 @@ def record() -> int:
         if event.name == "started":
             print("Recording. Press Ctrl+C to stop.", flush=True)
             started_at = time.monotonic()
+        elif event.name == "track-started":
+            recording.note_track_start(event.fields["track"], float(event.fields["host-time"]))
+        elif event.name == "output-route":
+            recording.note_output_route(event.fields["route"], event.fields.get("transport"))
         elif event.name == "level" and started_at is not None:
             elapsed = time.monotonic() - started_at
             levels = (float(event.fields.get(track, 0)) for track in ("mic", "system"))
@@ -51,8 +57,9 @@ def record() -> int:
         outcome = "failed" if started_at is None else "stopped"
         print(f"Recording {outcome}: {failure}.", file=sys.stderr)
         if started_at is None:
+            recording.discard()
             return 1
 
-    print(f"Mic track: {mic_track}")
-    print(f"System track: {system_track}")
+    print(f"Mic track: {recording.mic_track}")
+    print(f"System track: {recording.system_track}")
     return 0 if failure is None else 1

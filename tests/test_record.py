@@ -13,17 +13,24 @@ STAND_IN_CAPTURE = Path(__file__).with_name("stand_in_capture.py")
 
 
 def start_record(
-    folder: Path, capture_program: Path, *, text: bool = True, **environment: str
+    home: Path, capture_program: Path, *arguments: str, text: bool = True, **environment: str
 ) -> subprocess.Popen:
-    """Start `tldl record` in `folder`, with `capture_program` in place of the real capture program.
+    """Start `tldl record` with `home` as the home folder and `capture_program` as the capture program.
 
-    `environment` is added to the environment of both programs. With `text=False` the output comes as
-    bytes, exactly as written: reading it as text turns every carriage return into a new line.
+    `arguments` follow `record` on the command line. `environment` is added to the environment of both
+    programs. With `text=False` the output comes as bytes, exactly as written: reading it as text turns
+    every carriage return into a new line.
     """
     return subprocess.Popen(
-        [TLDL, "record"],
-        cwd=folder,
-        env={**os.environ, "TLDL_CAPTURE_PROGRAM": str(capture_program), **environment},
+        [TLDL, "record", *arguments],
+        cwd=home,
+        env={
+            **os.environ,
+            # The user's own home is out of reach: for this run `~/tldl/` is `home / "tldl"`.
+            "HOME": str(home),
+            "TLDL_CAPTURE_PROGRAM": str(capture_program),
+            **environment,
+        },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=text,

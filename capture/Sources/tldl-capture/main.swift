@@ -51,6 +51,8 @@ do {
     let microphone = try defaultMicrophone()
     let micTrack = try TrackWriter(device: microphone, path: micTrackPath)
     let systemTrack = try TrackWriter(device: systemTap.device, path: systemTrackPath)
+    micTrack.onFirstAudio = { report("track-started track=mic host-time=\(String(format: "%.6f", $0))") }
+    systemTrack.onFirstAudio = { report("track-started track=system host-time=\(String(format: "%.6f", $0))") }
 
     var stopping = false
     /// Closes both Tracks and ends the program: as asked, or as a failure when given the reason.
@@ -72,6 +74,8 @@ do {
         source.resume()
     }
     try whenDeviceDisappears(microphone) { stop(failure: "the microphone disappeared") }
+    micTrack.onWriteFailure = { stop(failure: $0) }
+    systemTrack.onWriteFailure = { stop(failure: $0) }
 
     try micTrack.start()
     try systemTrack.start()
@@ -80,6 +84,8 @@ do {
         reason: "tldl is recording"
     )
     report("started")
+    let outputRoute = currentOutputRoute()
+    report("output-route route=\(outputRoute.route) transport=\(outputRoute.transport)")
 
     levelTimer.schedule(deadline: .now() + levelInterval, repeating: levelInterval)
     levelTimer.setEventHandler {
