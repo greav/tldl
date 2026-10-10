@@ -6,9 +6,9 @@ here costs nothing until it runs.
 """
 
 from tldl.engines.parakeet import Parakeet
-from tldl.engines.seam import Engine, Recognition, Segment
+from tldl.engines.seam import Engine, Segment
 
-__all__ = ["DEFAULT_ENGINE", "ENGINES", "Engine", "Recognition", "Segment"]
+__all__ = ["DEFAULT_ENGINE", "ENGINES", "Engine", "Segment"]
 
 ENGINES: dict[str, Engine] = {
     "parakeet-v3": Parakeet("mlx-community/parakeet-tdt-0.6b-v3"),

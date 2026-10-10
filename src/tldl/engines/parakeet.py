@@ -6,9 +6,10 @@ runs without the network.
 """
 
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
-from tldl.engines.seam import Recognition, Segment
+from tldl.engines.seam import Segment
 
 CHUNK_SECONDS = 120.0
 """How much of a Track goes through the speech model at once. The model attends to all of what it is
@@ -30,19 +31,21 @@ class Parakeet:
         self._weights = weights
         self._model = None
 
-    def recognise(self, track: Path, language: str | None) -> Recognition:
+    def detect_language(self, tracks: Sequence[Path]) -> str | None:
+        return None
+
+    def recognise(self, track: Path, language: str | None) -> list[Segment]:
         if self._model is None:
             self._model = self._load()
         heard = self._model.transcribe(
             track, chunk_duration=CHUNK_SECONDS, overlap_duration=CHUNK_OVERLAP_SECONDS
         )
         # A Segment is a sentence as the speech model punctuated it.
-        segments = [
+        return [
             Segment(sentence.start, _end_of_speech(sentence), text)
             for sentence in heard.sentences
             if (text := sentence.text.strip())
         ]
-        return Recognition(segments)
 
     def _load(self):
         # Imported here and not at the top: loading speech recognition takes seconds, and only a run

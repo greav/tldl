@@ -18,9 +18,8 @@ def words(text: str) -> list[str]:
 
 @pytest.mark.engine
 def test_parakeet_v3_hears_each_sentence_as_a_segment_where_it_was_spoken():
-    recognition = ENGINES["parakeet-v3"].recognise(SPEECH, None)
+    first, second = ENGINES["parakeet-v3"].recognise(SPEECH, None)
 
-    first, second = recognition.segments
     assert words(first.text) == "the quick brown fox jumps over the lazy dog".split()
     assert words(second.text) == "recordings become transcripts on this machine".split()
     # The speech model places a word to within a few tenths of a second.
@@ -28,4 +27,4 @@ def test_parakeet_v3_hears_each_sentence_as_a_segment_where_it_was_spoken():
     assert first.end == pytest.approx(4.37, abs=0.5)
     assert second.start == pytest.approx(6.07, abs=0.5)
     assert second.end == pytest.approx(8.73, abs=0.5)
-    assert recognition.language is None
+    assert ENGINES["parakeet-v3"].detect_language([SPEECH]) is None

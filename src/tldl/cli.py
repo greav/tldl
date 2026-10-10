@@ -118,15 +118,14 @@ def transcribe(recordings_root: Path, name: str | None, engine_name: str, langua
 
     engine = ENGINES[engine_name]
     print(f"Transcribing {recording.folder.name} with {engine_name}.", flush=True)
-    # A language is settled once for the Recording: what the user gave, or else what the Engine
-    # reports for the first Track it can tell it on, which the other Track is then recognised in.
-    mic = engine.recognise(recording.mic_track, language)
-    language = language or mic.language
-    system = engine.recognise(recording.system_track, language)
-    language = language or system.language
+    # A language is settled once for the Recording: what the user gave, or else what the Engine hears
+    # on the two Tracks taken together.
+    language = language or engine.detect_language([recording.mic_track, recording.system_track])
+    mic_segments = engine.recognise(recording.mic_track, language)
+    system_segments = engine.recognise(recording.system_track, language)
 
     transcript = build_transcript(
-        mic.segments, system.segments, mic_offset=mic_offset, system_offset=system_offset
+        mic_segments, system_segments, mic_offset=mic_offset, system_offset=system_offset
     )
     transcript_file = recording.transcript_file(engine_name)
     segments_file = recording.segments_file(engine_name)

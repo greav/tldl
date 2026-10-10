@@ -168,7 +168,7 @@ def test_the_engine_is_given_the_two_tracks_of_the_recording(make_recording, sta
     assert engine.tracks == [recording / "mic.flac", recording / "system.flac"]
 
 
-def test_the_header_gives_no_language_when_the_engine_reported_none(make_recording, stand_in):
+def test_the_header_gives_no_language_when_the_engine_detected_none(make_recording, stand_in):
     recording = make_recording()
     stand_in(mic=[Segment(1.0, 2.0, "Hello.")])
 
@@ -178,17 +178,26 @@ def test_the_header_gives_no_language_when_the_engine_reported_none(make_recordi
     assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] is None
 
 
-def test_the_header_gives_the_language_the_engine_reported(make_recording, stand_in):
+def test_the_header_gives_the_language_the_engine_detected(make_recording, stand_in):
     recording = make_recording()
-    engine = stand_in(mic=[Segment(1.0, 2.0, "Привет.")], language="ru")
+    stand_in(mic=[Segment(1.0, 2.0, "Привет.")], language="ru")
 
     transcribe()
 
     assert "- Duration: 00:00:03\n- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
     assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] == "ru"
-    # The language is settled once for the Recording: the second Track is recognised in the language
-    # the Engine found on the first.
-    assert engine.languages_given == [None, "ru"]
+
+
+def test_the_language_is_detected_once_on_both_tracks_together_and_each_is_recognised_in_it(
+    make_recording, stand_in
+):
+    recording = make_recording()
+    engine = stand_in(mic=[Segment(1.0, 2.0, "Привет.")], language="ru")
+
+    transcribe()
+
+    assert engine.detected_on == [[recording / "mic.flac", recording / "system.flac"]]
+    assert engine.languages_given == ["ru", "ru"]
 
 
 def test_transcribe_with_no_argument_takes_the_recording_that_started_last(make_recording, stand_in):

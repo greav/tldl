@@ -1,9 +1,10 @@
 """The Engine seam: a Track goes in, Segments come out.
 
-An Engine knows nothing about Speakers, the other Track or the Transcript. Everything after the seam
-works on Segments alone.
+An Engine knows nothing about Speakers or the Transcript. Everything after the seam works on Segments
+alone.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -20,22 +21,21 @@ class Segment:
     text: str
 
 
-@dataclass(frozen=True)
-class Recognition:
-    """What an Engine heard on one Track."""
-
-    segments: list[Segment]
-    """In the order spoken. Empty for a Track with no speech."""
-    language: str | None = None
-    """The language the Engine recognised the Track in, as a code such as `en` or `ru`. None from an
-    Engine that neither detects a language nor takes one."""
-
-
 class Engine(Protocol):
-    def recognise(self, track: Path, language: str | None) -> Recognition:
-        """Turn the Track in the audio file `track` into Segments.
+    def detect_language(self, tracks: Sequence[Path]) -> str | None:
+        """The language spoken on `tracks`, as a code such as `en` or `ru`.
 
-        `language` is the language to recognise it in; None leaves the choice to the Engine. An Engine
-        that takes no language ignores it.
+        `tracks` are the audio files of the Tracks of one Recording. They are judged together, so that
+        a Track with a few words on it does not decide for the Track that holds the conversation. None
+        from an Engine that takes no language, and when no Track holds speech.
+        """
+        ...
+
+    def recognise(self, track: Path, language: str | None) -> list[Segment]:
+        """Turn the Track in the audio file `track` into Segments, in the order spoken.
+
+        A Track with no speech gives none. `language` is the language to recognise the Track in; None
+        leaves the choice to the Engine, which then judges this Track alone. An Engine that takes no
+        language ignores it.
         """
         ...

@@ -86,6 +86,7 @@ def test_the_lang_flag_gives_the_language_to_the_engine_and_to_the_transcript_he
 
     assert exit_status == 0
     assert engine.languages_given == ["ru", "ru"]
+    assert engine.detected_on == []
     assert "- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
     assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] == "ru"
 
@@ -126,6 +127,7 @@ def test_the_configuration_file_sets_the_default_language(make_recording, stand_
 
     assert exit_status == 0
     assert engine.languages_given == ["ru", "ru"]
+    assert engine.detected_on == []
     assert "- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
 
 
