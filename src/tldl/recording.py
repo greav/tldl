@@ -1,4 +1,5 @@
-"""A Recording on disk: a folder under the Recordings root holding the two Tracks and a metadata file.
+"""A Recording on disk: a folder under the Recordings root holding the two Tracks and a metadata file,
+and, once it has been transcribed, a Transcript and a Segments file for each Engine that heard it.
 
 The folder is named `YYYY-MM-DD_HHMM` after the local time the Recording started, with `_<title-slug>`
 appended when it was given a title.
@@ -43,18 +44,16 @@ def title_slug(title: str) -> str:
     return "-".join(re.findall(r"[^\W_]+", unicodedata.normalize("NFC", title).lower()))
 
 
-class Recording:
-    """A Recording being made: its folder, and the metadata gathered so far."""
+class NoRecording(Exception):
+    """There is no Recording where one was asked for. The message says so in words fit for the user."""
 
-    def __init__(self, folder: Path, started: datetime) -> None:
+
+class Recording:
+    """A Recording on disk: its folder, and what its metadata file holds."""
+
+    def __init__(self, folder: Path, metadata: dict) -> None:
         self.folder = folder
-        self._metadata = {
-            "started": started.isoformat(timespec="seconds"),
-            "track_starts": {"mic": None, "system": None},
-            "output_route": None,
-            "output_transport": None,
-        }
-        self._write_metadata()
+        self._metadata = metadata
 
     @classmethod
     def begin(cls, recordings_root: Path, started: datetime, title: str | None = None) -> "Recording":
@@ -74,7 +73,70 @@ class Recording:
                 folder.mkdir()
             except FileExistsError:
                 continue
-            return cls(folder, started)
+            recording = cls(
+                folder,
+                {
+                    "started": started.isoformat(timespec="seconds"),
+                    "track_starts": {"mic": None, "system": None},
+                    "output_route": None,
+                    "output_transport": None,
+                },
+            )
+            recording._write_metadata()
+            return recording
+
+    @classmethod
+    def open(cls, folder: Path) -> "Recording":
+        """The Recording in `folder`, however it ended: stopped, failed or interrupted."""
+        try:
+            metadata = json.loads((folder / METADATA_FILE).read_text())
+            datetime.fromisoformat(metadata["started"])
+        except (OSError, ValueError, KeyError, TypeError) as problem:
+            raise NoRecording(f"{folder} is not a Recording: it has no readable {METADATA_FILE}") from problem
+        return cls(folder, metadata)
+
+    @classmethod
+    def latest(cls, recordings_root: Path) -> "Recording":
+        """The Recording under `recordings_root` that started last."""
+        root = recordings_root.expanduser()
+        recordings = []
+        for folder in root.iterdir() if root.is_dir() else ():
+            try:
+                recordings.append(cls.open(folder))
+            except NoRecording:
+                continue
+        if not recordings:
+            raise NoRecording(f"there are no Recordings under {root}")
+        # By the start time and not by the folder's name: the name is to the minute and ends with the
+        # title, so it does not order two Recordings that started within one minute.
+        return max(recordings, key=lambda recording: (recording.started, recording.folder.name))
+
+    @classmethod
+    def named(cls, recordings_root: Path, name: str) -> "Recording":
+        """The Recording called `name` under `recordings_root`, or the one in the folder `name`."""
+        root = recordings_root.expanduser()
+        for folder in (root / name, Path(name)):
+            if folder.is_dir():
+                return cls.open(folder)
+        raise NoRecording(f"there is no Recording named {name} under {root}")
+
+    @property
+    def started(self) -> datetime:
+        """When the Recording started, in the local time of that moment."""
+        return datetime.fromisoformat(self._metadata["started"])
+
+    @property
+    def track_offsets(self) -> tuple[float, float]:
+        """How many seconds after the start of the Recording the mic track and the system track begin.
+
+        The Recording starts with whichever Track began first. When a Track's start was never
+        reported, as in a Recording interrupted in its first moments, both count as beginning together.
+        """
+        starts = self._metadata.get("track_starts") or {}
+        mic, system = starts.get("mic"), starts.get("system")
+        if mic is None or system is None:
+            return 0.0, 0.0
+        return mic - min(mic, system), system - min(mic, system)
 
     @property
     def mic_track(self) -> Path:
@@ -83,6 +145,14 @@ class Recording:
     @property
     def system_track(self) -> Path:
         return self.folder / SYSTEM_TRACK_FILE
+
+    def transcript_file(self, engine: str) -> Path:
+        """Where the Transcript made by the Engine named `engine` goes."""
+        return self.folder / f"transcript.{engine}.md"
+
+    def segments_file(self, engine: str) -> Path:
+        """Where the Segments the Engine named `engine` heard go, beside its Transcript."""
+        return self.folder / f"segments.{engine}.json"
 
     def note_track_start(self, track: str, host_time: float) -> None:
         """Record when `track` (`mic` or `system`) began, in seconds on the Tracks' shared clock."""

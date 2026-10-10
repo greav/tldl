@@ -3,7 +3,10 @@ name = "tldl"
 version = "0.1.0"
 description = "Records both sides of a call as two Tracks and turns the Recording into a Transcript."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "huggingface-hub>=2.2.0",
+    "parakeet-mlx>=0.5.3",
+]
 
 [project.scripts]
 tldl = "tldl.cli:main"

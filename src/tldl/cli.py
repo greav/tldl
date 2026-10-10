@@ -1,6 +1,7 @@
 """The `tldl` command line."""
 
 import argparse
+import os
 import signal
 import sys
 import time
@@ -8,18 +9,28 @@ from datetime import datetime
 from pathlib import Path
 
 from tldl.capture import Capture
-from tldl.recording import DEFAULT_RECORDINGS_ROOT, Recording
+from tldl.engines import DEFAULT_ENGINE, ENGINES
+from tldl.recording import DEFAULT_RECORDINGS_ROOT, NoRecording, Recording
 from tldl.status_line import status_line
+from tldl.track import UnreadableTrack, track_length
+from tldl.transcript import build_transcript, render_segments_file, render_transcript
 
 
-def main() -> int:
+def main(command_line: list[str] | None = None) -> int:
+    """Run `tldl` with the arguments in `command_line`; without it, with the ones it was started with."""
     parser = argparse.ArgumentParser(prog="tldl")
     commands = parser.add_subparsers(dest="command", required=True)
     record_command = commands.add_parser(
         "record", help="capture the mic track and the system track until Ctrl+C"
     )
     record_command.add_argument("title", nargs="?", help="a name for the Recording, added to its folder's name")
-    arguments = parser.parse_args()
+    transcribe_command = commands.add_parser("transcribe", help="turn a Recording into a Transcript")
+    transcribe_command.add_argument(
+        "recording", nargs="?", help="the Recording's name or its folder; without it, the latest Recording"
+    )
+    arguments = parser.parse_args(command_line)
+    if arguments.command == "transcribe":
+        return transcribe(DEFAULT_RECORDINGS_ROOT, arguments.recording, DEFAULT_ENGINE, language=None)
     return record(DEFAULT_RECORDINGS_ROOT, arguments.title)
 
 
@@ -63,3 +74,62 @@ def record(recordings_root: Path, title: str | None) -> int:
     print(f"Mic track: {recording.mic_track}")
     print(f"System track: {recording.system_track}")
     return 0 if failure is None else 1
+
+
+def transcribe(recordings_root: Path, name: str | None, engine_name: str, language: str | None) -> int:
+    """Turn a Recording into a Transcript and a Segments file, both written into its folder.
+
+    `name` chooses the Recording; None is the latest one under `recordings_root`. `language` is the
+    language the user gave; None leaves it to the Engine.
+    """
+    try:
+        recording = Recording.latest(recordings_root) if name is None else Recording.named(recordings_root, name)
+        mic_offset, system_offset = recording.track_offsets
+        # Before the Engine runs: recognition takes minutes, and a Track that cannot be read should
+        # stop the command at once.
+        duration = max(
+            mic_offset + track_length(recording.mic_track),
+            system_offset + track_length(recording.system_track),
+        )
+    except (NoRecording, UnreadableTrack) as problem:
+        print(f"Cannot transcribe: {problem}.", file=sys.stderr)
+        return 1
+
+    engine = ENGINES[engine_name]
+    print(f"Transcribing {recording.folder.name} with {engine_name}.", flush=True)
+    # A language is settled once for the Recording: what the user gave, or else what the Engine
+    # reports for the first Track it can tell it on, which the other Track is then recognised in.
+    mic = engine.recognise(recording.mic_track, language)
+    language = language or mic.language
+    system = engine.recognise(recording.system_track, language)
+    language = language or system.language
+
+    transcript = build_transcript(
+        mic.segments, system.segments, mic_offset=mic_offset, system_offset=system_offset
+    )
+    transcript_file = recording.transcript_file(engine_name)
+    segments_file = recording.segments_file(engine_name)
+    _replace(
+        transcript_file,
+        render_transcript(
+            transcript,
+            title=recording.folder.name,
+            started=recording.started,
+            duration=duration,
+            language=language,
+        ),
+    )
+    _replace(
+        segments_file,
+        render_segments_file(transcript, engine=engine_name, duration=duration, language=language),
+    )
+    print(f"Transcript: {transcript_file}")
+    print(f"Segments: {segments_file}")
+    return 0
+
+
+def _replace(file: Path, text: str) -> None:
+    """Write `text` as the whole content of `file`, which is never seen half-written."""
+    unfinished = file.with_name(f"{file.name}.unfinished")
+    unfinished.write_text(text)
+    os.replace(unfinished, file)
