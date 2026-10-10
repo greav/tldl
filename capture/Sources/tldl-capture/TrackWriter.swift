@@ -13,6 +13,9 @@ final class TrackWriter {
     private var file: ExtAudioFileRef?
     private var ioProc: AudioDeviceIOProcID?
 
+    /// The level of what is being written.
+    let level = LevelMeter()
+
     /// Scratch space for the mono mix, allocated up front because the audio thread must not allocate.
     private let mix: UnsafeMutablePointer<Float32>
     private static let mixCapacity = 4096
@@ -38,6 +41,10 @@ final class TrackWriter {
     /// came out.
     private var firstAudioHostTime: UInt64 = 0
     private var firstAudioReported = false
+
+    /// Called on the main queue, with the reason, when audio could not be written to the file. The
+    /// Track ends there.
+    var onWriteFailure: ((String) -> Void)?
 
     init(device: AudioDeviceID, path: String) throws {
         self.device = device
@@ -196,7 +203,13 @@ final class TrackWriter {
         )
         let status = ExtAudioFileWrite(file, UInt32(samples.count), &mono)
         guard status == noErr else {
-            fail("could not write \(path) (Core Audio error \(status))")
+            // Nothing more goes into this file. What is on disk can be decoded whether or not closing
+            // the file works.
+            ExtAudioFileDispose(file)
+            self.file = nil
+            let reason = "could not write \(path) (Core Audio error \(status))"
+            DispatchQueue.main.async { [onWriteFailure] in onWriteFailure?(reason) }
+            return
         }
 
         // Once a second, ask for the audio to leave the system's cache for the disk, so that losing
@@ -241,6 +254,7 @@ final class TrackWriter {
                     }
                 }
             }
+            level.hear(mix, count: frames)
             pending.append(mix, count: frames)
             written += frames
         }

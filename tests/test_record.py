@@ -12,16 +12,28 @@ TLDL = Path(sys.executable).with_name("tldl")
 STAND_IN_CAPTURE = Path(__file__).with_name("stand_in_capture.py")
 
 
-def start_record(home: Path, capture_program: Path, *arguments: str) -> subprocess.Popen:
-    """Start `tldl record` with `home` as the home folder and `capture_program` as the capture program."""
+def start_record(
+    home: Path, capture_program: Path, *arguments: str, text: bool = True, **environment: str
+) -> subprocess.Popen:
+    """Start `tldl record` with `home` as the home folder and `capture_program` as the capture program.
+
+    `arguments` follow `record` on the command line. `environment` is added to the environment of both
+    programs. With `text=False` the output comes as bytes, exactly as written: reading it as text turns
+    every carriage return into a new line.
+    """
     return subprocess.Popen(
         [TLDL, "record", *arguments],
         cwd=home,
-        # The user's own home is out of reach: for this run `~/tldl/` is `home / "tldl"`.
-        env={**os.environ, "HOME": str(home), "TLDL_CAPTURE_PROGRAM": str(capture_program)},
+        env={
+            **os.environ,
+            # The user's own home is out of reach: for this run `~/tldl/` is `home / "tldl"`.
+            "HOME": str(home),
+            "TLDL_CAPTURE_PROGRAM": str(capture_program),
+            **environment,
+        },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
+        text=text,
         # A group of its own, so the stop signal reaches the capture program only if `record` passes it
         # on, and so a failing test can clear away both processes.
         start_new_session=True,

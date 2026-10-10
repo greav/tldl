@@ -22,6 +22,9 @@ Stop signal
     the same way, and a stop signal that arrives while it is already stopping changes nothing: Ctrl+C in
     a terminal reaches the capture program directly as well as through the CLI.
 
+    The capture program stops in the same way when nobody reads its standard output any more: without
+    the CLI there is nobody left to send the stop signal.
+
 Standard output
     One event per line, UTF-8: the event's name, then zero or more `key=value` fields, all separated by
     single spaces. A value holds no spaces. A reader ignores events and fields it does not know, so new
@@ -40,9 +43,23 @@ Standard output
         device. `transport` is how that device is connected, the fact the verdict rests on: `built-in`,
         `bluetooth`, `usb`, `hdmi`, `displayport`, `airplay`, `virtual` or `other`.
 
+    level mic=<level> system=<level>
+        The loudest sample of each Track since the event before this one, as a fraction of full scale
+        from 0.0000 to 1.0000. Reported about ten times a second from `started` until capture ends. A
+        Track with no sound in it reports 0.0000.
+
+    failed <reason>
+        Capture could not start or could not go on. Everything after the name is the reason, in words
+        fit for the user; unlike a field it may hold spaces. It is the last event.
+
 Failure
-    When capture cannot start or cannot go on, the capture program writes the reason to standard error
-    and exits with a non-zero status.
+    When capture cannot start or cannot go on, the capture program closes both files, so that what was
+    captured is kept, reports `failed` and exits with a non-zero status. The microphone it started on
+    disappearing is such a failure. A non-zero status with no `failed` event means the capture program
+    itself broke.
+
+Sleep
+    From `started` until it exits, the capture program keeps the Mac from idle sleep.
 """
 
 import os
@@ -65,11 +82,14 @@ class Event:
 
     name: str
     fields: dict[str, str]
+    text: str = ""
+    """Everything after the name, for an event that carries words and not fields."""
 
 
 def parse_event(line: str) -> Event:
-    name, *fields = line.split()
-    return Event(name, dict(field.split("=", 1) for field in fields if "=" in field))
+    name, _, text = line.strip().partition(" ")
+    fields = dict(field.split("=", 1) for field in text.split() if "=" in field)
+    return Event(name, fields, text)
 
 
 class Capture:

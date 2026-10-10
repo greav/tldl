@@ -10,18 +10,33 @@ from pathlib import Path
 import pytest
 from test_record import STAND_IN_CAPTURE, finish, start_record
 
-WHAT_THE_STAND_IN_REPORTS = {
+REPORTED_BY_THE_CAPTURE_PROGRAM = "\n".join(
+    [
+        "output-route route=headphones transport=bluetooth",
+        "track-started track=mic host-time=100.250000",
+        "track-started track=system host-time=100.500000",
+    ]
+)
+"""What the stand-in capture program reports about the Track starts and the output route."""
+
+METADATA_OF_THAT_REPORT = {
     "track_starts": {"mic": 100.25, "system": 100.5},
     "output_route": "headphones",
     "output_transport": "bluetooth",
 }
-"""The metadata a Recording made with the stand-in capture program holds, apart from its start time."""
+"""What the metadata file holds once all of that was reported, apart from the Recording's start time."""
+
+
+def start_recording(home: Path, *arguments: str):
+    """Start `tldl record` and wait until it says that capture has started."""
+    record = start_record(home, STAND_IN_CAPTURE, *arguments, STAND_IN_EVENTS=REPORTED_BY_THE_CAPTURE_PROGRAM)
+    record.stdout.readline()
+    return record
 
 
 def make_recording(home: Path, *arguments: str) -> None:
     """Run `tldl record` and stop it with the stop signal once capture has started."""
-    record = start_record(home, STAND_IN_CAPTURE, *arguments)
-    record.stdout.readline()
+    record = start_recording(home, *arguments)
     record.send_signal(signal.SIGINT)
     exit_status, _, errors = finish(record)
     assert exit_status == 0, errors
@@ -54,8 +69,8 @@ def test_a_recording_is_a_folder_under_the_recordings_root_named_by_date_and_tim
         ("sprint planning", "_sprint-planning"),
         ("  Q3 Review: Budget & Hiring!  ", "_q3-review-budget-hiring"),
         ("Планёрка по релизу 2.1", "_планёрка-по-релизу-2-1"),
-        # "й" typed as "и" and a combining breve, as file names copied from Finder have it.
-        ("Чай", "_чай"),
+        # A letter written as two characters, as in file names copied from Finder, is still one letter.
+        ("Чаи\N{COMBINING BREVE}", "_ча\N{CYRILLIC SMALL LETTER SHORT I}"),
         ("../../elsewhere", "_elsewhere"),
         ("?!", ""),
     ],
@@ -100,16 +115,15 @@ def test_the_metadata_file_holds_the_start_time_the_track_starts_and_the_output_
     [recording] = recordings(tmp_path)
     metadata = json.loads((recording / "recording.json").read_text())
     assert before <= datetime.fromisoformat(metadata.pop("started")) <= after
-    assert metadata == WHAT_THE_STAND_IN_REPORTS
+    assert metadata == METADATA_OF_THAT_REPORT
 
 
 def test_the_metadata_is_already_on_disk_when_a_recording_is_killed(tmp_path):
-    record = start_record(tmp_path, STAND_IN_CAPTURE)
-    record.stdout.readline()
+    record = start_recording(tmp_path)
     [recording] = recordings(tmp_path)
     metadata_file = recording / "recording.json"
 
-    # The stand-in reports the system track's start last.
+    # The system track's start is the last thing reported.
     give_up = time.monotonic() + 5
     while json.loads(metadata_file.read_text())["track_starts"]["system"] is None and time.monotonic() < give_up:
         time.sleep(0.01)
@@ -118,17 +132,17 @@ def test_the_metadata_is_already_on_disk_when_a_recording_is_killed(tmp_path):
 
     metadata = json.loads(metadata_file.read_text())
     del metadata["started"]
-    assert metadata == WHAT_THE_STAND_IN_REPORTS
-    # The stand-in writes its Tracks on the stop signal, so their absence shows it never got one.
+    assert metadata == METADATA_OF_THAT_REPORT
+    # The stand-in writes its Tracks when capture ends, so their absence shows it was killed.
     assert not (recording / "mic.flac").exists()
 
 
 def test_a_recording_that_never_started_leaves_no_folder(tmp_path):
-    failing_capture = tmp_path / "failing-capture"
-    failing_capture.write_text("#!/bin/sh\necho 'no microphone' >&2\nexit 1\n")
-    failing_capture.chmod(0o755)
+    no_microphone = tmp_path / "no-microphone"
+    no_microphone.write_text("#!/bin/sh\necho 'failed there is no default microphone'\nexit 1\n")
+    no_microphone.chmod(0o755)
 
-    exit_status, _, _ = finish(start_record(tmp_path, failing_capture))
+    exit_status, _, _ = finish(start_record(tmp_path, no_microphone))
 
     assert exit_status == 1
     assert recordings(tmp_path) == []
