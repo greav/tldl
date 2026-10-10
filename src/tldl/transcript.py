@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from tldl.echo_filter import echoes
 from tldl.engines import Segment
 
 
@@ -29,6 +30,8 @@ class SpokenSegment:
     end: float
     """Seconds from the start of the Recording."""
     text: str
+    echo: bool = False
+    """True for a Segment the echo filter removed: the microphone hearing what the others said."""
 
 
 @dataclass(frozen=True)
@@ -44,9 +47,10 @@ class Line:
 @dataclass(frozen=True)
 class Transcript:
     segments: list[SpokenSegment]
-    """Every Segment of both Tracks, in the order spoken."""
+    """Every Segment of both Tracks, in the order spoken, the ones the echo filter removed included."""
     lines: list[Line]
-    """The same speech as it reads: consecutive Segments of one Speaker joined into one line."""
+    """The speech as it reads: the Segments the echo filter left, consecutive ones of one Speaker
+    joined into one line."""
 
 
 def build_transcript(
@@ -61,17 +65,23 @@ def build_transcript(
     Mic-track Segments are attributed to Me and system-track Segments to Others. `mic_offset` and
     `system_offset` are how many seconds after the start of the Recording each Track begins; they put
     the Segments of both Tracks on the Recording's one timeline.
+
+    The echo filter always runs: a mic-track Segment that is the microphone hearing the others is
+    marked and left out of the lines.
     """
+    me = [_placed(segment, mic_offset) for segment in mic_segments]
+    others = [_placed(segment, system_offset) for segment in system_segments]
     spoken = [
-        SpokenSegment(speaker, offset + segment.start, offset + segment.end, segment.text)
-        for speaker, offset, segments in (
-            (Speaker.ME, mic_offset, mic_segments),
-            (Speaker.OTHERS, system_offset, system_segments),
-        )
-        for segment in segments
-    ]
+        SpokenSegment(Speaker.ME, segment.start, segment.end, segment.text, echo=echo)
+        for segment, echo in zip(me, echoes(me, others))
+    ] + [SpokenSegment(Speaker.OTHERS, segment.start, segment.end, segment.text) for segment in others]
     spoken.sort(key=lambda segment: segment.start)
-    return Transcript(spoken, _joined(spoken))
+    return Transcript(spoken, _joined([segment for segment in spoken if not segment.echo]))
+
+
+def _placed(segment: Segment, offset: float) -> Segment:
+    """`segment` on the Recording's timeline, given how long after its start the Segment's Track begins."""
+    return Segment(offset + segment.start, offset + segment.end, segment.text)
 
 
 def _joined(segments: Sequence[SpokenSegment]) -> list[Line]:
@@ -127,7 +137,8 @@ def render_segments_file(
         duration  the length of the Recording in seconds
         segments  every Segment of both Tracks in the order spoken, each with its `speaker` (`Me` or
                   `Others`), its `start` and `end` in seconds from the start of the Recording, and
-                  its `text`
+                  its `text`. `echo` is true for a Segment the echo filter removed: it is in this
+                  file and not in the Transcript
     """
     content = {
         "engine": engine,
@@ -139,6 +150,7 @@ def render_segments_file(
                 "start": round(segment.start, 3),
                 "end": round(segment.end, 3),
                 "text": segment.text,
+                "echo": segment.echo,
             }
             for segment in transcript.segments
         ],
