@@ -12,12 +12,13 @@ TLDL = Path(sys.executable).with_name("tldl")
 STAND_IN_CAPTURE = Path(__file__).with_name("stand_in_capture.py")
 
 
-def start_record(folder: Path, capture_program: Path) -> subprocess.Popen:
-    """Start `tldl record` in `folder`, with `capture_program` in place of the real capture program."""
+def start_record(home: Path, capture_program: Path, *arguments: str) -> subprocess.Popen:
+    """Start `tldl record` with `home` as the home folder and `capture_program` as the capture program."""
     return subprocess.Popen(
-        [TLDL, "record"],
-        cwd=folder,
-        env={**os.environ, "TLDL_CAPTURE_PROGRAM": str(capture_program)},
+        [TLDL, "record", *arguments],
+        cwd=home,
+        # The user's own home is out of reach: for this run `~/tldl/` is `home / "tldl"`.
+        env={**os.environ, "HOME": str(home), "TLDL_CAPTURE_PROGRAM": str(capture_program)},
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
