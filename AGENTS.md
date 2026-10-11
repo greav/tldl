@@ -40,6 +40,8 @@ file. A command-line flag overrides the file.
   when the change touches an Engine.
 - **Capture program**: checked by hand, because it needs macOS permissions and real devices. Required when
   the change touches it: make a short Recording and confirm both Tracks hold sound.
+- **Trial runs** beyond the suites (a real capture, `make install`, a real Engine, one of the user's
+  Recordings) follow `docs/agents/trial-runs.md`.
 
 ## Agent skills
 
