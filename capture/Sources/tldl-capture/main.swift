@@ -1,4 +1,5 @@
-// The capture program: writes the mic track and the system track to two given paths until the stop signal.
+// The capture program: writes the mic track and the system track to two given paths until the stop signal,
+// taking the mic track from the microphone it was given the name of or from the system default microphone.
 //
 // Its arguments, stop signal, output and failure behaviour are the capture program contract, described
 // in one place: the docstring of `src/tldl/capture.py`. Change the contract there first.
@@ -20,11 +21,12 @@ func fail(_ reason: String, status: Int32) -> Never {
 }
 
 let arguments = CommandLine.arguments.dropFirst()
-guard arguments.count == 2 else {
-    fail("usage: tldl-capture <mic-track-path> <system-track-path>", status: 2)
+guard arguments.count == 2 || arguments.count == 3 else {
+    fail("usage: tldl-capture <mic-track-path> <system-track-path> [<microphone-name>]", status: 2)
 }
 let micTrackPath = arguments[arguments.startIndex]
 let systemTrackPath = arguments[arguments.startIndex + 1]
+let microphoneName = arguments.count == 3 ? arguments[arguments.startIndex + 2] : nil
 
 // Taken over before any device starts, so a stop signal can never kill the program with files open.
 let stopSignals = [SIGINT, SIGTERM, SIGHUP]
@@ -47,9 +49,11 @@ func written(_ level: Float32) -> String {
 }
 
 do {
-    let systemTap = try SystemTap()
-    let microphone = try defaultMicrophone()
+    // Before anything is created: a microphone that is not there leaves no file and no tap behind, and
+    // the tap's own device is not yet among the devices that have input.
+    let microphone = try microphone(named: microphoneName)
     let microphoneDescription = try describeMicrophone(microphone)
+    let systemTap = try SystemTap()
     let micTrack = try TrackWriter(device: microphone, path: micTrackPath)
     let systemTrack = try TrackWriter(device: systemTap.device, path: systemTrackPath)
     micTrack.onFirstAudio = { report("track-started track=mic host-time=\(String(format: "%.6f", $0))") }

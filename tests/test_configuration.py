@@ -3,26 +3,12 @@ stand-in Engines, `tldl record` against the stand-in capture program."""
 
 import json
 import signal
-from pathlib import Path
 
 import pytest
 from test_record import STAND_IN_CAPTURE, finish, reported_path, start_record
 
 from tldl import cli
 from tldl.engines import Segment
-
-
-@pytest.fixture
-def configure(home):
-    """Writes the given text as the configuration file, `~/.config/tldl/config.toml`; returns its path."""
-
-    def write(text: str) -> Path:
-        file = home / ".config" / "tldl" / "config.toml"
-        file.parent.mkdir(parents=True, exist_ok=True)
-        file.write_text(text)
-        return file
-
-    return write
 
 
 def transcribe(*arguments: str) -> int:
@@ -239,9 +225,10 @@ def test_a_configuration_file_that_is_not_toml_fails_with_the_file_and_the_probl
         ("engine = 3\n", "engine must be text in quotes"),
         ("language = true\n", "language must be text in quotes"),
         ('recordings_root = ["~/calls"]\n', "recordings_root must be text in quotes"),
+        ("microphone = 1\n", "microphone must be text in quotes"),
         (
             'recording_root = "~/calls"\n',
-            "there is no key named recording_root; the keys are recordings_root, engine, language",
+            "there is no key named recording_root; the keys are recordings_root, engine, language, microphone.",
         ),
         ('[transcribe]\nengine = "parakeet-v3"\n', "there is no key named transcribe"),
     ],

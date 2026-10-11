@@ -1,4 +1,5 @@
-"""What the tests of `tldl transcribe` share: a home folder of their own, Recordings in it, stand-in Engines."""
+"""What the tests share: a home folder of their own, a configuration file and Recordings in it, stand-in
+Engines."""
 
 import json
 import shutil
@@ -34,6 +35,19 @@ def home(tmp_path, monkeypatch):
     """A home folder for one test: `~/tldl/` is under it, out of reach of the user's own."""
     monkeypatch.setenv("HOME", str(tmp_path))
     return tmp_path
+
+
+@pytest.fixture
+def configure(home):
+    """Writes the given text as the configuration file, `~/.config/tldl/config.toml`; returns its path."""
+
+    def write(text: str) -> Path:
+        file = home / ".config" / "tldl" / "config.toml"
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(text)
+        return file
+
+    return write
 
 
 @pytest.fixture
