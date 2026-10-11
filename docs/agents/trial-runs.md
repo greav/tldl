@@ -10,6 +10,8 @@ of its own.
   `tldl stereo <folder>` take a Recording by its path, so nothing under the home folder is written.
   `tldl record` writes under the user's Recordings root: for a trial capture, run the capture program itself
   with two paths in the temporary folder.
+- To give a trial a home folder of its own, set `HOME` inside a test, or in a script that starts `tldl` as
+  a child process. An agent's shell in a worktree refuses a command that sets `HOME`.
 - A Recording of the user's is private speech. Read one only when the user has said so, on a copy in a
   temporary folder, and delete the copy afterwards. Its audio and its text stay out of the repo, the tests
   and commit messages.
