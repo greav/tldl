@@ -26,6 +26,13 @@ def track_length(track: Path) -> float:
     return int(microseconds[-1]) / 1_000_000
 
 
+def track_holds_audio(track: Path) -> bool:
+    """Whether `track` holds any audio at all. The Track of a Recording killed in its first moments is a
+    header with nothing after it: a file that can be read, and holds none."""
+    lengths = _decoded(track, ["-progress", "pipe:1"], "out_time_us")
+    return any(length.isdigit() and int(length) > 0 for length in lengths)
+
+
 LOUDNESS_MOMENTS_A_SECOND = 10
 """How many values `track_momentary_loudness` gives for each second of a Track."""
 

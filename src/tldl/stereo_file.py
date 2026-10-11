@@ -26,7 +26,12 @@ import subprocess
 from pathlib import Path
 
 from tldl.recording import Recording, UnreadableMetadata
-from tldl.track import LOUDNESS_MOMENTS_A_SECOND, UnreadableTrack, track_momentary_loudness
+from tldl.track import (
+    LOUDNESS_MOMENTS_A_SECOND,
+    UnreadableTrack,
+    track_holds_audio,
+    track_momentary_loudness,
+)
 
 SAMPLE_RATE = 48_000
 """The stereo file's sample rate, in hertz. A Track at another rate is resampled to it."""
@@ -65,10 +70,21 @@ def make_stereo_file(recording: Recording) -> Path:
     stereo_file = recording.stereo_file
     try:
         mic_offset, system_offset = recording.track_offsets
-        mic_loudness = _loudness_of_the_loud_part(track_momentary_loudness(recording.mic_track))
-        system_loudness = _loudness_of_the_loud_part(track_momentary_loudness(recording.system_track))
+        mic_moments = track_momentary_loudness(recording.mic_track)
+        system_moments = track_momentary_loudness(recording.system_track)
+        # One Track with nothing in it is a silent channel; two are a stereo file with nothing to play.
+        # A Track that lasts long enough to have a loudness holds audio, so only shorter ones are asked.
+        if not (
+            mic_moments
+            or system_moments
+            or track_holds_audio(recording.mic_track)
+            or track_holds_audio(recording.system_track)
+        ):
+            raise StereoFileNotMade("the Recording holds no audio: both of its Tracks are empty")
     except (UnreadableMetadata, UnreadableTrack) as problem:
         raise StereoFileNotMade(str(problem)) from problem
+    mic_loudness = _loudness_of_the_loud_part(mic_moments)
+    system_loudness = _loudness_of_the_loud_part(system_moments)
     # Each Track is put into one channel of a stereo sound whose other channel is silent, and the two
     # are added together for as long as the longer one lasts.
     graph = (

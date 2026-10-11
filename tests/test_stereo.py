@@ -407,6 +407,39 @@ def test_stereo_fails_when_a_track_cannot_be_read_naming_the_recording_and_the_p
     assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
 
 
+NO_AUDIO = numpy.zeros(0)
+"""The sound of a Track that is a FLAC header with nothing after it, which is all a Recording killed in
+its first moments leaves of a Track."""
+
+
+@pytest.mark.parametrize("track_starts", [(None, None), (100.5, 100.0)])
+def test_stereo_fails_and_leaves_no_file_when_neither_track_holds_any_audio(recording_of, capsys, track_starts):
+    recording = recording_of(
+        mic=NO_AUDIO, system=NO_AUDIO, name="2026-10-10_1946_sprint-planning", track_starts=track_starts
+    )
+
+    exit_status = stereo()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        "the Recording holds no audio: both of its Tracks are empty.\n"
+    )
+    assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
+
+
+def test_a_track_that_holds_no_audio_beside_one_that_does_is_a_silent_channel(recording_of):
+    recording = recording_of(mic=NO_AUDIO, system=tone(1))
+
+    exit_status = stereo()
+
+    assert exit_status == 0
+    left, right = channels_of(recording / "stereo.flac")
+    assert len(left) == len(right) == 1 * RATE
+    assert not left.any()
+    assert pitch_of(right) == pytest.approx(1000, abs=2)
+
+
 @pytest.mark.parametrize(
     "track_starts, problem",
     [
