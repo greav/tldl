@@ -7,12 +7,18 @@ Capture program contract
 ------------------------
 
 Arguments
-    tldl-capture <mic-track-path> <system-track-path>
+    tldl-capture <mic-track-path> <system-track-path> [<microphone-name>]
 
-    Two file paths and nothing else. The capture program writes the mic track (the system default
-    microphone at the moment of start) to the first and the system track (everything the computer plays)
-    to the second, each as mono 16-bit FLAC at its device's sample rate. The folders must exist; the files
-    are created or replaced.
+    Two file paths and, when the user chose a microphone, its name; nothing else. The capture program
+    writes the mic track to the first path and the system track (everything the computer plays) to the
+    second, each as mono 16-bit FLAC at its device's sample rate. The folders must exist; the files are
+    created or replaced.
+
+    The mic track is taken from the microphone named: the device with input that the system calls
+    exactly that, as the `microphone` event reports it. The name is one argument, spaces and all, and is
+    not percent-encoded. Without the third argument the mic track is taken from the system default
+    microphone at the moment of start. Either way the capture program opens that device itself and never
+    changes the system's default input.
 
     The audio reaches the files while capture runs, and a file is valid FLAC at every moment: whatever
     ends the capture program, each Track can be decoded up to about the moment it ended.
@@ -44,7 +50,8 @@ Standard output
         `bluetooth`, `usb`, `hdmi`, `displayport`, `airplay`, `virtual` or `other`.
 
     microphone name=<name> transport=<word> sample-rate=<hertz>
-        The microphone the mic track is taken from: the system default microphone when capture started.
+        The microphone the mic track is taken from: the one named in the arguments, or else the system
+        default microphone when capture started.
         `name` is what the system calls the device, percent-encoded as in a URL, since a value holds no
         spaces. `transport` is how the device is connected, one of the words `output-route` uses.
         `sample-rate` is the rate the device delivers audio at, which is also the mic track's.
@@ -63,6 +70,13 @@ Failure
     captured is kept, reports `failed` and exits with a non-zero status. The microphone it started on
     disappearing is such a failure. A non-zero status with no `failed` event means the capture program
     itself broke.
+
+    When no device with input has the name given in the arguments, capture does not start: the capture
+    program creates neither file and reports, with the microphones that are there by name,
+
+        failed there is no microphone named <name>; the microphones are <name>, <name>
+
+    or, when there are none, `failed there is no microphone named <name>; there are no microphones`.
 
 Sleep
     From `started` until it exits, the capture program keeps the Mac from idle sleep.
@@ -105,13 +119,16 @@ class CaptureNotLaunched(Exception):
 class Capture:
     """A running capture program, writing the two Tracks to the given paths."""
 
-    def __init__(self, mic_track: Path, system_track: Path) -> None:
-        """Launch the capture program. Raises CaptureNotLaunched when there is none to launch."""
+    def __init__(self, mic_track: Path, system_track: Path, microphone: str | None = None) -> None:
+        """Launch the capture program. Raises CaptureNotLaunched when there is none to launch.
+
+        `microphone` names the microphone to take the mic track from, as the system calls it; None is
+        the system default microphone.
+        """
         program = os.environ.get(CAPTURE_PROGRAM_VARIABLE) or PACKAGED_CAPTURE_PROGRAM
+        arguments = [mic_track, system_track] if microphone is None else [mic_track, system_track, microphone]
         try:
-            self._process = subprocess.Popen(
-                [program, mic_track, system_track], stdout=subprocess.PIPE, text=True
-            )
+            self._process = subprocess.Popen([program, *arguments], stdout=subprocess.PIPE, text=True)
         except OSError as problem:
             raise CaptureNotLaunched(
                 f"the capture program {program} could not be launched: {problem.strerror}"

@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from tldl.capture import Capture, CaptureNotLaunched
-from tldl.configuration import UnreadableConfiguration, read_configuration
+from tldl.configuration import SYSTEM_DEFAULT_MICROPHONE, UnreadableConfiguration, read_configuration
 from tldl.engines import ENGINES
 from tldl.recording import NoRecording, Recording
 from tldl.status_line import status_line
@@ -26,6 +26,12 @@ def main(command_line: list[str] | None = None) -> int:
         "record", help="capture the mic track and the system track until Ctrl+C"
     )
     record_command.add_argument("title", nargs="?", help="a name for the Recording, added to its folder's name")
+    record_command.add_argument(
+        "--microphone",
+        metavar="NAME",
+        help="the microphone to take the mic track from for this run, by the name the system gives it;"
+        f" {SYSTEM_DEFAULT_MICROPHONE} is the system default microphone",
+    )
     transcribe_command = commands.add_parser("transcribe", help="turn a Recording into a Transcript")
     transcribe_command.add_argument(
         "recording", nargs="?", help="the Recording's name or its folder; without it, the latest Recording"
@@ -49,14 +55,23 @@ def main(command_line: list[str] | None = None) -> int:
             arguments.engine or configuration.engine,
             arguments.lang or configuration.language,
         )
-    return record(configuration.recordings_root, arguments.title)
+    microphone = arguments.microphone or configuration.microphone
+    return record(
+        configuration.recordings_root,
+        arguments.title,
+        None if microphone == SYSTEM_DEFAULT_MICROPHONE else microphone,
+    )
 
 
-def record(recordings_root: Path, title: str | None) -> int:
+def record(recordings_root: Path, title: str | None, microphone: str | None) -> int:
+    """Make a Recording under `recordings_root` until the stop signal.
+
+    `microphone` names the microphone the mic track is taken from; None is the system default microphone.
+    """
     recording = Recording.begin(recordings_root, datetime.now().astimezone(), title)
 
     try:
-        capture = Capture(recording.mic_track, recording.system_track)
+        capture = Capture(recording.mic_track, recording.system_track, microphone)
     except CaptureNotLaunched as problem:
         print(f"Recording failed: {problem}.", file=sys.stderr)
         recording.discard()
