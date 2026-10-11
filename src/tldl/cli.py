@@ -14,6 +14,7 @@ from tldl.configuration import UnreadableConfiguration, read_configuration
 from tldl.engines import ENGINES
 from tldl.recording import NoRecording, Recording
 from tldl.status_line import status_line
+from tldl.stereo_file import StereoFileNotMade, make_stereo_file
 from tldl.track import UnreadableTrack, track_length
 from tldl.transcript import build_transcript, render_segments_file, render_transcript
 
@@ -36,6 +37,10 @@ def main(command_line: list[str] | None = None) -> int:
     transcribe_command.add_argument(
         "--lang", metavar="CODE", help="the language spoken, as a code such as en or ru, for this run"
     )
+    stereo_command = commands.add_parser("stereo", help="put both Tracks of a Recording into one stereo file")
+    stereo_command.add_argument(
+        "recording", nargs="?", help="the Recording's name or its folder; without it, the latest Recording"
+    )
     arguments = parser.parse_args(command_line)
     try:
         configuration = read_configuration()
@@ -49,6 +54,8 @@ def main(command_line: list[str] | None = None) -> int:
             arguments.engine or configuration.engine,
             arguments.lang or configuration.language,
         )
+    if arguments.command == "stereo":
+        return stereo(configuration.recordings_root, arguments.recording)
     return record(configuration.recordings_root, arguments.title)
 
 
@@ -165,6 +172,26 @@ def transcribe(recordings_root: Path, name: str | None, engine_name: str, langua
     )
     print(f"Transcript: {transcript_file}")
     print(f"Segments: {segments_file}")
+    return 0
+
+
+def stereo(recordings_root: Path, name: str | None) -> int:
+    """Make the stereo file of a Recording, in its folder.
+
+    `name` chooses the Recording; None is the latest one under `recordings_root`.
+    """
+    try:
+        recording = Recording.latest(recordings_root) if name is None else Recording.named(recordings_root, name)
+    except NoRecording as problem:
+        print(f"Cannot make the stereo file: {problem}.", file=sys.stderr)
+        return 1
+    print(f"Making the stereo file of {recording.folder.name}.", flush=True)
+    try:
+        stereo_file = make_stereo_file(recording)
+    except StereoFileNotMade as problem:
+        print(f"Cannot make the stereo file of {recording.folder.name}: {problem}.", file=sys.stderr)
+        return 1
+    print(f"Stereo file: {stereo_file}")
     return 0
 
 

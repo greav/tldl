@@ -186,6 +186,20 @@ def test_transcribe_takes_the_latest_recording_under_the_configured_recordings_r
     assert not (elsewhere / "transcript.parakeet-v3.md").exists()
 
 
+def test_stereo_takes_the_latest_recording_under_the_configured_recordings_root(home, make_recording, configure):
+    elsewhere = make_recording("2026-10-10_2000", started="2026-10-10T20:00:00+02:00")
+    older = make_recording("2026-10-08_0900", root=home / "calls", started="2026-10-08T09:00:00+02:00")
+    latest = make_recording("2026-10-09_1000", root=home / "calls", started="2026-10-09T10:00:00+02:00")
+    configure(f'recordings_root = "{home / "calls"}"\n')
+
+    exit_status = cli.main(["stereo"])
+
+    assert exit_status == 0
+    assert (latest / "stereo.flac").exists()
+    assert not (older / "stereo.flac").exists()
+    assert not (elsewhere / "stereo.flac").exists()
+
+
 def test_record_writes_to_the_configured_recordings_root(home, configure):
     configure('recordings_root = "~/calls"\n')
 

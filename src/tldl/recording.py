@@ -1,5 +1,6 @@
 """A Recording on disk: a folder under the Recordings root holding the two Tracks and a metadata file,
-and, once it has been transcribed, a Transcript and a Segments file for each Engine that heard it.
+and, once it has been transcribed, a Transcript and a Segments file for each Engine that heard it. The
+stereo file, once made, is in the folder too.
 
 The folder is named `YYYY-MM-DD_HHMM` after the local time the Recording started, with `_<title-slug>`
 appended when it was given a title.
@@ -34,6 +35,7 @@ DEFAULT_RECORDINGS_ROOT = Path("~/tldl")
 
 MIC_TRACK_FILE = "mic.flac"
 SYSTEM_TRACK_FILE = "system.flac"
+STEREO_FILE = "stereo.flac"
 METADATA_FILE = "recording.json"
 
 
@@ -155,6 +157,11 @@ class Recording:
     @property
     def system_track(self) -> Path:
         return self.folder / SYSTEM_TRACK_FILE
+
+    @property
+    def stereo_file(self) -> Path:
+        """Where the Recording's stereo file goes."""
+        return self.folder / STEREO_FILE
 
     def transcript_file(self, engine: str) -> Path:
         """Where the Transcript made by the Engine named `engine` goes."""

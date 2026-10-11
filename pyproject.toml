@@ -14,7 +14,7 @@ dependencies = [
 tldl = "tldl.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["numpy>=2", "pytest>=8"]
 
 [build-system]
 requires = ["hatchling"]
