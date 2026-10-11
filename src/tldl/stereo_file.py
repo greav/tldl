@@ -6,24 +6,48 @@ the system track its right. The Tracks are only read, so the stereo file can alw
 Each channel begins where its Track began on the clock the two Tracks share, and the one that ends first
 is silent from there to the end, so nothing of either Track is cut.
 
-Each Track is brought to the same loudness on its own, by one change of level for the whole Track: its
-loudness is measured first, and the Track is raised or lowered by the difference from the target. It is
-never raised by more than a fixed limit, so a Track that holds no speech stays quiet. The few moments
-that would then pass full scale are turned down by a limiter; nothing clips.
+Each Track is brought to the same loudness on its own, by one change of level for the whole Track: it is
+raised or lowered by the difference between the loudness of its loud part and the target.
+
+The loud part is what the Track is listened to for, which on a call is the speech. It is found in the
+Track's loudness from moment to moment. The loudest second is set aside, because a knock on the microphone
+is louder than the speech and is not what the level should follow; the loud part is every moment of the
+rest that lies within a fixed span below the loudest of them. What is quieter does not count, however long
+it lasts: a mic track with a few words in an hour of the room's noise is raised as far as the words need,
+and the noise with them by no more than that.
+
+A Track is never raised by more than a fixed limit, so one that holds no speech stays quiet. The few
+moments that would then pass full scale are turned down by a limiter; nothing clips.
 """
 
+import math
 import os
 import subprocess
 from pathlib import Path
 
 from tldl.recording import Recording, UnreadableMetadata
-from tldl.track import UnreadableTrack, track_loudness
+from tldl.track import LOUDNESS_MOMENTS_A_SECOND, UnreadableTrack, track_momentary_loudness
 
 SAMPLE_RATE = 48_000
 """The stereo file's sample rate, in hertz. A Track at another rate is resampled to it."""
 
 TARGET_LOUDNESS = -19.0
-"""How loud each channel of the stereo file is made, in LUFS."""
+"""How loud the loud part of each channel of the stereo file is made, in LUFS."""
+
+LOUD_PART_SPAN = 16.0
+"""How far below its loudest moment a Track still counts as loud, in decibels. Speech stays within this
+span of itself; the noise of a room lies further below it."""
+
+KNOCK_LENGTH = 1.0
+"""How much of a Track, counted from its loudest moment down, is set aside before its loud part is looked
+for, in seconds. A knock on the microphone or a cough is that short."""
+
+KNOCK_SHARE = 0.25
+"""The most of a Track's sound that is set aside in that way, as a part of the whole: a Track with less
+than four seconds of sound in it gives up less than a second."""
+
+SILENCE = -70.0
+"""The loudness below which a moment of a Track counts as silent and has no part in the measure, in LUFS."""
 
 RAISE_LIMIT = 20.0
 """The most a Track is raised to reach the target, in decibels. Lowering has no limit."""
@@ -41,8 +65,8 @@ def make_stereo_file(recording: Recording) -> Path:
     stereo_file = recording.stereo_file
     try:
         mic_offset, system_offset = recording.track_offsets
-        mic_loudness = track_loudness(recording.mic_track)
-        system_loudness = track_loudness(recording.system_track)
+        mic_loudness = _loudness_of_the_loud_part(track_momentary_loudness(recording.mic_track))
+        system_loudness = _loudness_of_the_loud_part(track_momentary_loudness(recording.system_track))
     except (UnreadableMetadata, UnreadableTrack) as problem:
         raise StereoFileNotMade(str(problem)) from problem
     # Each Track becomes a stereo stream with sound in one channel only, and the two are added together
@@ -72,11 +96,26 @@ def make_stereo_file(recording: Recording) -> Path:
     return stereo_file
 
 
+def _loudness_of_the_loud_part(moments: list[float]) -> float:
+    """How loud the loud part of a Track is, in LUFS, given its loudness from moment to moment.
+
+    A Track with no moment above `SILENCE` is that quiet.
+    """
+    heard = sorted((moment for moment in moments if moment > SILENCE), reverse=True)
+    if not heard:
+        return SILENCE
+    knock = min(round(KNOCK_LENGTH * LOUDNESS_MOMENTS_A_SECOND), int(KNOCK_SHARE * len(heard)))
+    lasting = heard[knock:]
+    loud = [moment for moment in lasting if moment >= lasting[0] - LOUD_PART_SPAN]
+    # Loudness is the logarithm of power, and it is the power that is averaged.
+    return 10 * math.log10(sum(10 ** (moment / 10) for moment in loud) / len(loud))
+
+
 def _channel(channel: int, offset: float, loudness: float) -> str:
     """The ffmpeg filters that turn a Track into channel number `channel` of the stereo file.
 
     `offset` is how many seconds after the start of the Recording the Track begins, and `loudness` how
-    loud the Track is, in LUFS.
+    loud its loud part is, in LUFS.
     """
     gain = min(TARGET_LOUDNESS - loudness, RAISE_LIMIT)
     filters = [

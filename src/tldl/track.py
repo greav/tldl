@@ -13,10 +13,6 @@ class UnreadableTrack(Exception):
     """A Track's audio could not be read. The message says why in words fit for the user."""
 
 
-QUIETEST_LOUDNESS = -70.0
-"""The lowest loudness `track_loudness` reports, in LUFS: the level below which the measure hears nothing."""
-
-
 def track_length(track: Path) -> float:
     """How many seconds of audio `track` holds, found by decoding it to its end.
 
@@ -30,19 +26,24 @@ def track_length(track: Path) -> float:
     return int(microseconds[-1]) / 1_000_000
 
 
-def track_loudness(track: Path) -> float:
-    """How loud `track` is taken as a whole, in LUFS: its integrated loudness by EBU R 128.
+LOUDNESS_MOMENTS_A_SECOND = 10
+"""How many values `track_momentary_loudness` gives for each second of a Track."""
 
-    The measure leaves out the stretches where nothing sounds, so a Track with a few words in a long
-    silence is as loud as its words. A Track that never rises above `QUIETEST_LOUDNESS`, or is too short
-    to measure, is reported as that quiet.
+
+def track_momentary_loudness(track: Path) -> list[float]:
+    """How loud `track` is from moment to moment, in LUFS: its momentary loudness by EBU R 128.
+
+    There is one value for each tenth of a second of the Track, in order: the loudness of the 0.4
+    seconds that end there. Before 0.4 seconds have passed, and where the Track holds digital silence,
+    the value is far below that of any sound, under -120. A Track shorter than a tenth of a second has
+    none.
     """
-    # The loudness of the Track so far is printed for every tenth of a second of it; the last one is
-    # the loudness of the whole.
-    so_far = _decoded(
-        track, ["-af", "ebur128=metadata=1,ametadata=mode=print:key=lavfi.r128.I:file=-"], "lavfi.r128.I"
-    )
-    return max(float(so_far[-1]), QUIETEST_LOUDNESS) if so_far else QUIETEST_LOUDNESS
+    return [
+        float(loudness)
+        for loudness in _decoded(
+            track, ["-af", "ebur128=metadata=1,ametadata=mode=print:key=lavfi.r128.M:file=-"], "lavfi.r128.M"
+        )
+    ]
 
 
 def _decoded(track: Path, reporting: list[str], key: str) -> list[str]:

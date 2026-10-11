@@ -270,6 +270,42 @@ def noise(seconds: float, *, level: float) -> numpy.ndarray:
     return numpy.random.default_rng(0).normal(0, 10 ** (level / 20), round(seconds * RATE))
 
 
+def a_few_words_in_a_quiet_room() -> numpy.ndarray:
+    """Three minutes of what a mic track mostly is on a call: the noise of the room at -50 dBFS, and in
+    it three passages of two seconds at -25 dBFS, beginning 30, 90 and 150 seconds in."""
+    sound = noise(180, level=-50)
+    for start in (30, 90, 150):
+        sound[start * RATE : (start + 2) * RATE] += tone(2, level=-25)
+    return sound
+
+
+def test_a_few_loud_passages_in_a_long_quiet_noise_come_out_as_loud_as_a_track_that_is_loud_throughout(recording_of):
+    recording = recording_of(mic=a_few_words_in_a_quiet_room(), system=tone(180, level=-25))
+
+    stereo()
+
+    left, right = channels_of(recording / "stereo.flac")
+    assert level_of(right) == pytest.approx(TARGET_LOUDNESS, abs=0.5)
+    for start in (30, 90, 150):
+        assert level_of(seconds(left, start, start + 2)) == pytest.approx(TARGET_LOUDNESS, abs=1.5)
+    # The noise is raised by the 6 dB the passages are raised by, and no more.
+    assert level_of(seconds(left, 40, 80)) == pytest.approx(-50 + 6, abs=1.5)
+
+
+def test_one_brief_knock_louder_than_everything_else_does_not_decide_how_loud_a_track_is_made(recording_of):
+    # A knock on the microphone, three tenths of a second at -6 dBFS: 19 dB above the passages.
+    with_a_knock = a_few_words_in_a_quiet_room()
+    with_a_knock[60 * RATE : 60 * RATE + round(0.3 * RATE)] += tone(0.3, level=-6)
+    recording = recording_of(mic=with_a_knock, system=tone(180, level=-25))
+
+    stereo()
+
+    left, _ = channels_of(recording / "stereo.flac")
+    for start in (30, 90, 150):
+        assert level_of(seconds(left, start, start + 2)) == pytest.approx(TARGET_LOUDNESS, abs=1.5)
+    assert peak_of(left) <= PEAK_CEILING + 0.01
+
+
 def test_a_track_with_nothing_but_faint_noise_is_raised_by_no_more_than_the_limit(recording_of):
     recording = recording_of(mic=noise(2, level=-60), system=tone(2))
 
