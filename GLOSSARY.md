@@ -44,3 +44,26 @@ _Avoid_: Notes, minutes, summary
 One audio file holding both Tracks of a Recording: the mic track in its left channel, the system track in its
 right. It is derived from the Tracks and can be made again from them.
 _Avoid_: Mix, mixdown, combined recording, merged audio
+
+**Capture program**:
+The program that captures the two Tracks of a Recording. It knows audio and its devices and nothing about
+Recordings.
+_Avoid_: Recorder, helper, daemon
+
+**Recordings root**:
+The folder under which every Recording has its own folder.
+_Avoid_: Output directory, library
+
+**Output route**:
+What the computer was playing sound through when a Recording started: loudspeakers or headphones.
+_Avoid_: Output device, audio route
+
+**Echo filter**:
+What keeps out of a Transcript the Segments on the mic track that are copies of what the Others said, picked
+up by the microphone from the loudspeakers.
+_Avoid_: Echo cancellation, deduplication
+
+**Segments file**:
+The machine-readable record of what one Engine heard in a Recording: every Segment of both Tracks with its
+Speaker, kept beside that Engine's Transcript.
+_Avoid_: JSON transcript, raw transcript
