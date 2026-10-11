@@ -12,7 +12,7 @@ Two programs:
   and reports levels, each Track's start, the output route, the microphone and errors. It knows nothing
   about Recordings.
 - **CLI** (Python) owns everything else: Recording folders, configuration, Engines, Transcripts. It reaches
-  the capture program only through that contract.
+  the capture program only through that contract, described in the docstring of `src/tldl/capture.py`.
 
 Every Engine sits behind one seam: a Track goes in, Segments come out. Everything after the seam (merging
 the two Tracks, the echo filter, rendering the Transcript) works on Segments alone, so adding an Engine is
@@ -40,6 +40,8 @@ file. A command-line flag overrides the file.
   when the change touches an Engine.
 - **Capture program**: checked by hand, because it needs macOS permissions and real devices. Required when
   the change touches it: make a short Recording and confirm both Tracks hold sound.
+- **Trial runs** beyond the suites (a real capture, `make install`, a real Engine, one of the user's
+  Recordings) follow `docs/agents/trial-runs.md`.
 
 ## Agent skills
 

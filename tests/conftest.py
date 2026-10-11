@@ -2,6 +2,7 @@
 Engines."""
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -10,6 +11,9 @@ import pytest
 from stand_in_engine import StandInEngine
 
 from tldl.engines import ENGINES
+
+USERS_OWN_HOME = Path.home()
+"""The home folder the suite was started in, noted before any test is given another."""
 
 
 @pytest.fixture(scope="session")
@@ -30,9 +34,12 @@ def silent_track(tmp_path_factory):
     return make
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def home(tmp_path, monkeypatch):
-    """A home folder for one test: `~/tldl/` is under it, out of reach of the user's own."""
+    """A home folder for each test, whether it asks for one or not: `~/tldl/` and the configuration file
+    are under it, out of reach of the user's own. The speech models stay where they were downloaded."""
+    models = os.environ.get("HF_HOME") or str(USERS_OWN_HOME / ".cache" / "huggingface")
+    monkeypatch.setenv("HF_HOME", models)
     monkeypatch.setenv("HOME", str(tmp_path))
     return tmp_path
 
