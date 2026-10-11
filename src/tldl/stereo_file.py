@@ -69,8 +69,8 @@ def make_stereo_file(recording: Recording) -> Path:
         system_loudness = _loudness_of_the_loud_part(track_momentary_loudness(recording.system_track))
     except (UnreadableMetadata, UnreadableTrack) as problem:
         raise StereoFileNotMade(str(problem)) from problem
-    # Each Track becomes a stereo stream with sound in one channel only, and the two are added together
-    # for as long as the longer one lasts.
+    # Each Track is put into one channel of a stereo sound whose other channel is silent, and the two
+    # are added together for as long as the longer one lasts.
     graph = (
         f"[0:a]{_channel(0, mic_offset, mic_loudness)}[left];"
         f"[1:a]{_channel(1, system_offset, system_loudness)}[right];"
