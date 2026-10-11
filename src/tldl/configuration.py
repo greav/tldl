@@ -6,6 +6,8 @@ The file is TOML. Every key is optional, and so is the file itself:
     engine           the name of the Engine `tldl transcribe` uses
     language         the language spoken on the Recordings, as a code such as `en` or `ru`; without it
                      the language is left to the Engine
+    microphone       the microphone `tldl record` takes the mic track from, by the name the system gives
+                     it; `default` is the system default microphone at the moment a Recording starts
 """
 
 import tomllib
@@ -17,6 +19,9 @@ from tldl.recording import DEFAULT_RECORDINGS_ROOT
 
 CONFIGURATION_FILE = Path("~/.config/tldl/config.toml")
 
+SYSTEM_DEFAULT_MICROPHONE = "default"
+"""The word that names the system default microphone, in the file and on the command line."""
+
 
 @dataclass(frozen=True)
 class Configuration:
@@ -25,6 +30,7 @@ class Configuration:
     recordings_root: Path = DEFAULT_RECORDINGS_ROOT
     engine: str = DEFAULT_ENGINE
     language: str | None = None
+    microphone: str = SYSTEM_DEFAULT_MICROPHONE
 
 
 class UnreadableConfiguration(Exception):
