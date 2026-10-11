@@ -77,6 +77,23 @@ def test_a_microphone_that_is_not_there_fails_with_its_name_and_the_microphones_
     assert list((home / "tldl").iterdir()) == []
 
 
+def test_an_empty_microphone_flag_wins_over_the_configuration_file_and_names_no_microphone_that_is_there(
+    home, configure
+):
+    configure('microphone = "MacBook Pro Microphone"\n')
+
+    record = start_record(home, STAND_IN_CAPTURE, "--microphone", "", STAND_IN_MICROPHONES=HEADSET_CONNECTED)
+    exit_status, output, errors = finish(record)
+
+    assert exit_status == 1
+    assert errors == (
+        "Recording failed: there is no microphone named ;"
+        " the microphones are Headset Microphone, MacBook Pro Microphone.\n"
+    )
+    assert output == ""
+    assert list((home / "tldl").iterdir()) == []
+
+
 def test_a_named_microphone_that_disappears_stops_the_recording_and_keeps_what_was_captured(home):
     record = start_record(
         home,

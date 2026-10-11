@@ -62,7 +62,8 @@ def main(command_line: list[str] | None = None) -> int:
         )
     if arguments.command == "stereo":
         return stereo(configuration.recordings_root, arguments.recording)
-    microphone = arguments.microphone or configuration.microphone
+    # A flag that was given wins, an empty one too: that is a name no microphone has.
+    microphone = configuration.microphone if arguments.microphone is None else arguments.microphone
     return record(
         configuration.recordings_root,
         arguments.title,
