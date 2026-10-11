@@ -7,7 +7,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import unquote
 
 from tldl.capture import Capture, CaptureNotLaunched
 from tldl.configuration import SYSTEM_DEFAULT_MICROPHONE, UnreadableConfiguration, read_configuration
@@ -100,7 +99,7 @@ def record(recordings_root: Path, title: str | None, microphone: str | None) -> 
         elif event.name == "microphone":
             sample_rate = event.fields.get("sample-rate")
             recording.note_microphone(
-                unquote(event.fields["name"]),
+                event.fields["name"],
                 event.fields.get("transport"),
                 int(sample_rate) if sample_rate else None,
             )
