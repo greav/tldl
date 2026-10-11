@@ -343,6 +343,23 @@ def test_transcribe_fails_before_the_engine_runs_when_a_track_cannot_be_read(mak
     assert not (recording / "transcript.parakeet-v3.md").exists()
 
 
+def test_transcribe_fails_before_the_engine_runs_when_a_track_start_in_the_metadata_file_is_not_a_number(
+    make_recording, stand_in, capsys
+):
+    recording = make_recording(track_starts=(100.0, "soon"))
+    engine = stand_in()
+
+    exit_status = transcribe()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        f"Cannot transcribe: the metadata file {recording / 'recording.json'}"
+        ' gives the start of the system track as "soon", which is not a number.\n'
+    )
+    assert engine.tracks == []
+    assert not (recording / "transcript.parakeet-v3.md").exists()
+
+
 def test_transcribe_fails_with_the_reason_when_ffmpeg_is_missing(make_recording, stand_in, monkeypatch, capsys):
     recording = make_recording()
     engine = stand_in()

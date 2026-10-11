@@ -23,6 +23,7 @@ these, so it is there whatever ends the Recording. A value is null until it has 
 
 import itertools
 import json
+import math
 import os
 import re
 import shutil
@@ -50,6 +51,11 @@ def title_slug(title: str) -> str:
 
 class NoRecording(Exception):
     """There is no Recording where one was asked for. The message says so in words fit for the user."""
+
+
+class UnreadableMetadata(Exception):
+    """A Recording's metadata file holds something that cannot be used. The message names the file and
+    the problem in words fit for the user."""
 
 
 class Recording:
@@ -143,9 +149,22 @@ class Recording:
 
         The Recording starts with whichever Track began first. When a Track's start was never
         reported, as in a Recording interrupted in its first moments, both count as beginning together.
+        Raises UnreadableMetadata when the metadata file gives a start that is not a number, as only a
+        file edited by hand does.
         """
         starts = self._metadata.get("track_starts") or {}
+        if not isinstance(starts, dict):
+            raise self._unreadable(
+                f"gives the Track starts as {json.dumps(starts)}, which is not a start for each Track"
+            )
         mic, system = starts.get("mic"), starts.get("system")
+        for track, start in (("mic", mic), ("system", system)):
+            # A truth value counts as a number in Python and is none here; neither is NaN or infinity.
+            a_number = isinstance(start, int | float) and not isinstance(start, bool) and math.isfinite(start)
+            if start is not None and not a_number:
+                raise self._unreadable(
+                    f"gives the start of the {track} track as {json.dumps(start)}, which is not a number"
+                )
         if mic is None or system is None:
             return 0.0, 0.0
         return mic - min(mic, system), system - min(mic, system)
@@ -190,6 +209,9 @@ class Recording:
     def discard(self) -> None:
         """Remove the folder. For a Recording that never started, whose folder holds no audio."""
         shutil.rmtree(self.folder)
+
+    def _unreadable(self, problem: str) -> UnreadableMetadata:
+        return UnreadableMetadata(f"the metadata file {self.folder / METADATA_FILE} {problem}")
 
     def _write_metadata(self) -> None:
         # Written aside and moved into place, so the file is whole at every moment.

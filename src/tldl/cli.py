@@ -11,7 +11,7 @@ from pathlib import Path
 from tldl.capture import Capture, CaptureNotLaunched
 from tldl.configuration import SYSTEM_DEFAULT_MICROPHONE, UnreadableConfiguration, read_configuration
 from tldl.engines import ENGINES
-from tldl.recording import NoRecording, Recording
+from tldl.recording import NoRecording, Recording, UnreadableMetadata
 from tldl.status_line import status_line
 from tldl.stereo_file import StereoFileNotMade, make_stereo_file
 from tldl.track import UnreadableTrack, track_length
@@ -147,7 +147,7 @@ def transcribe(recordings_root: Path, name: str | None, engine_name: str, langua
             mic_offset + track_length(recording.mic_track),
             system_offset + track_length(recording.system_track),
         )
-    except (NoRecording, UnreadableTrack) as problem:
+    except (NoRecording, UnreadableMetadata, UnreadableTrack) as problem:
         print(f"Cannot transcribe: {problem}.", file=sys.stderr)
         return 1
 

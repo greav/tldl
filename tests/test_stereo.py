@@ -363,6 +363,47 @@ def test_stereo_fails_when_a_track_cannot_be_read_naming_the_recording_and_the_p
     assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
 
 
+@pytest.mark.parametrize(
+    "track_starts, problem",
+    [
+        (("soon", 100.0), 'gives the start of the mic track as "soon", which is not a number'),
+        ((100.0, [100.0]), "gives the start of the system track as [100.0], which is not a number"),
+        ((float("nan"), 100.0), "gives the start of the mic track as NaN, which is not a number"),
+    ],
+)
+def test_stereo_fails_when_a_track_start_in_the_metadata_file_is_not_a_number_naming_the_file_and_the_problem(
+    recording_of, capsys, track_starts, problem
+):
+    recording = recording_of(
+        mic=tone(1), system=tone(1), name="2026-10-10_1946_sprint-planning", track_starts=track_starts
+    )
+
+    exit_status = stereo()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"the metadata file {recording / 'recording.json'} {problem}.\n"
+    )
+    assert not (recording / "stereo.flac").exists()
+
+
+def test_stereo_fails_when_the_track_starts_in_the_metadata_file_are_not_a_start_for_each_track(recording_of, capsys):
+    recording = recording_of(mic=tone(1), system=tone(1), name="2026-10-10_1946_sprint-planning")
+    metadata = json.loads((recording / "recording.json").read_text())
+    (recording / "recording.json").write_text(json.dumps({**metadata, "track_starts": [100.0, 100.25]}))
+
+    exit_status = stereo()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"the metadata file {recording / 'recording.json'} gives the Track starts as [100.0, 100.25],"
+        " which is not a start for each Track.\n"
+    )
+    assert not (recording / "stereo.flac").exists()
+
+
 def test_stereo_fails_when_there_is_no_recording_of_that_name(make_recording, capsys):
     recording = make_recording("2026-10-10_1946")
 

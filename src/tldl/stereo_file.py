@@ -16,7 +16,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from tldl.recording import Recording
+from tldl.recording import Recording, UnreadableMetadata
 from tldl.track import UnreadableTrack, track_loudness
 
 SAMPLE_RATE = 48_000
@@ -39,11 +39,11 @@ class StereoFileNotMade(Exception):
 def make_stereo_file(recording: Recording) -> Path:
     """Make the stereo file of `recording`, in the place of one made before; returns where it is."""
     stereo_file = recording.stereo_file
-    mic_offset, system_offset = recording.track_offsets
     try:
+        mic_offset, system_offset = recording.track_offsets
         mic_loudness = track_loudness(recording.mic_track)
         system_loudness = track_loudness(recording.system_track)
-    except UnreadableTrack as problem:
+    except (UnreadableMetadata, UnreadableTrack) as problem:
         raise StereoFileNotMade(str(problem)) from problem
     # Each Track becomes a stereo stream with sound in one channel only, and the two are added together
     # for as long as the longer one lasts.
