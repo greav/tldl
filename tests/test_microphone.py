@@ -32,6 +32,17 @@ def test_the_microphone_flag_chooses_the_microphone_the_recording_is_made_with(h
     assert microphone_in_the_metadata(home)["name"] == "MacBook Pro Microphone"
 
 
+def test_the_metadata_file_gives_a_microphone_name_as_the_system_does_whatever_characters_it_holds(home):
+    name = "Микрофон «A=B» 100% + 20%"
+    record = start_record(home, STAND_IN_CAPTURE, "--microphone", name, STAND_IN_MICROPHONES=name)
+    record.stdout.readline()
+    record.send_signal(signal.SIGINT)
+    exit_status, _, errors = finish(record)
+
+    assert exit_status == 0, errors
+    assert microphone_in_the_metadata(home)["name"] == name
+
+
 def test_with_no_microphone_named_the_recording_is_made_with_the_system_default_microphone(home):
     record_and_stop(home)
 
@@ -71,6 +82,23 @@ def test_a_microphone_that_is_not_there_fails_with_its_name_and_the_microphones_
     assert exit_status == 1
     assert errors == (
         "Recording failed: there is no microphone named AirPods Pro;"
+        " the microphones are Headset Microphone, MacBook Pro Microphone.\n"
+    )
+    assert output == ""
+    assert list((home / "tldl").iterdir()) == []
+
+
+def test_an_empty_microphone_flag_wins_over_the_configuration_file_and_names_no_microphone_that_is_there(
+    home, configure
+):
+    configure('microphone = "MacBook Pro Microphone"\n')
+
+    record = start_record(home, STAND_IN_CAPTURE, "--microphone", "", STAND_IN_MICROPHONES=HEADSET_CONNECTED)
+    exit_status, output, errors = finish(record)
+
+    assert exit_status == 1
+    assert errors == (
+        "Recording failed: there is no microphone named ;"
         " the microphones are Headset Microphone, MacBook Pro Microphone.\n"
     )
     assert output == ""

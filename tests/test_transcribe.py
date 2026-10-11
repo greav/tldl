@@ -330,15 +330,51 @@ def test_transcribe_fails_when_there_are_no_recordings(home, stand_in, capsys):
     assert f"no Recordings under {home / 'tldl'}" in capsys.readouterr().err
 
 
-def test_transcribe_fails_before_the_engine_runs_when_a_track_cannot_be_read(make_recording, stand_in, capsys):
+@pytest.mark.parametrize(
+    "what_the_track_holds, reason", [("not audio", "ffmpeg could not decode it"), ("", "the file is empty")]
+)
+def test_transcribe_fails_before_the_engine_runs_when_a_track_cannot_be_read(
+    make_recording, stand_in, capsys, what_the_track_holds, reason
+):
     recording = make_recording()
-    (recording / "system.flac").write_text("not audio")
+    (recording / "system.flac").write_text(what_the_track_holds)
     engine = stand_in()
 
     exit_status = transcribe()
 
     assert exit_status == 1
-    assert f"could not read {recording / 'system.flac'}" in capsys.readouterr().err
+    assert capsys.readouterr().err == f"Cannot transcribe: could not read {recording / 'system.flac'}: {reason}.\n"
+    assert engine.tracks == []
+    assert not (recording / "transcript.parakeet-v3.md").exists()
+
+
+def test_transcribe_fails_before_the_engine_runs_when_a_track_is_missing(make_recording, stand_in, capsys):
+    recording = make_recording()
+    (recording / "mic.flac").unlink()
+    engine = stand_in()
+
+    exit_status = transcribe()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        f"Cannot transcribe: could not read {recording / 'mic.flac'}: No such file or directory.\n"
+    )
+    assert engine.tracks == []
+
+
+def test_transcribe_fails_before_the_engine_runs_when_a_track_start_in_the_metadata_file_is_not_a_number(
+    make_recording, stand_in, capsys
+):
+    recording = make_recording(track_starts=(100.0, "soon"))
+    engine = stand_in()
+
+    exit_status = transcribe()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        f"Cannot transcribe: the metadata file {recording / 'recording.json'}"
+        ' gives the start of the system track as "soon", which is not a number.\n'
+    )
     assert engine.tracks == []
     assert not (recording / "transcript.parakeet-v3.md").exists()
 

@@ -270,6 +270,42 @@ def noise(seconds: float, *, level: float) -> numpy.ndarray:
     return numpy.random.default_rng(0).normal(0, 10 ** (level / 20), round(seconds * RATE))
 
 
+def a_few_words_in_a_quiet_room() -> numpy.ndarray:
+    """Three minutes of what a mic track mostly is on a call: the noise of the room at -50 dBFS, and in
+    it three passages of two seconds at -25 dBFS, beginning 30, 90 and 150 seconds in."""
+    sound = noise(180, level=-50)
+    for start in (30, 90, 150):
+        sound[start * RATE : (start + 2) * RATE] += tone(2, level=-25)
+    return sound
+
+
+def test_a_few_loud_passages_in_a_long_quiet_noise_come_out_as_loud_as_a_track_that_is_loud_throughout(recording_of):
+    recording = recording_of(mic=a_few_words_in_a_quiet_room(), system=tone(180, level=-25))
+
+    stereo()
+
+    left, right = channels_of(recording / "stereo.flac")
+    assert level_of(right) == pytest.approx(TARGET_LOUDNESS, abs=0.5)
+    for start in (30, 90, 150):
+        assert level_of(seconds(left, start, start + 2)) == pytest.approx(TARGET_LOUDNESS, abs=1.5)
+    # The noise is raised by the 6 dB the passages are raised by, and no more.
+    assert level_of(seconds(left, 40, 80)) == pytest.approx(-50 + 6, abs=1.5)
+
+
+def test_one_brief_knock_louder_than_everything_else_does_not_decide_how_loud_a_track_is_made(recording_of):
+    # A knock on the microphone, three tenths of a second at -6 dBFS: 19 dB above the passages.
+    with_a_knock = a_few_words_in_a_quiet_room()
+    with_a_knock[60 * RATE : 60 * RATE + round(0.3 * RATE)] += tone(0.3, level=-6)
+    recording = recording_of(mic=with_a_knock, system=tone(180, level=-25))
+
+    stereo()
+
+    left, _ = channels_of(recording / "stereo.flac")
+    for start in (30, 90, 150):
+        assert level_of(seconds(left, start, start + 2)) == pytest.approx(TARGET_LOUDNESS, abs=1.5)
+    assert peak_of(left) <= PEAK_CEILING + 0.01
+
+
 def test_a_track_with_nothing_but_faint_noise_is_raised_by_no_more_than_the_limit(recording_of):
     recording = recording_of(mic=noise(2, level=-60), system=tone(2))
 
@@ -344,23 +380,105 @@ def test_stereo_fails_when_a_track_is_missing_naming_the_recording_and_the_probl
     exit_status = stereo()
 
     assert exit_status == 1
-    said = capsys.readouterr().err
-    assert f"Cannot make the stereo file of 2026-10-10_1946_sprint-planning: could not read {recording / track}" in said
-    assert "No such file or directory" in said
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"could not read {recording / track}: No such file or directory.\n"
+    )
     assert not (recording / "stereo.flac").exists()
 
 
 @pytest.mark.parametrize("track", ["mic.flac", "system.flac"])
-def test_stereo_fails_when_a_track_cannot_be_read_naming_the_recording_and_the_problem(recording_of, capsys, track):
+@pytest.mark.parametrize(
+    "what_the_track_holds, reason", [("not audio", "ffmpeg could not decode it"), ("", "the file is empty")]
+)
+def test_stereo_fails_when_a_track_cannot_be_read_naming_the_recording_and_the_problem(
+    recording_of, capsys, track, what_the_track_holds, reason
+):
     recording = recording_of(mic=tone(1), system=tone(1), name="2026-10-10_1946_sprint-planning")
-    (recording / track).write_text("not audio")
+    (recording / track).write_text(what_the_track_holds)
 
     exit_status = stereo()
 
     assert exit_status == 1
-    said = capsys.readouterr().err
-    assert f"Cannot make the stereo file of 2026-10-10_1946_sprint-planning: could not read {recording / track}" in said
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"could not read {recording / track}: {reason}.\n"
+    )
     assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
+
+
+NO_AUDIO = numpy.zeros(0)
+"""The sound of a Track that is a FLAC header with nothing after it, which is all a Recording killed in
+its first moments leaves of a Track."""
+
+
+@pytest.mark.parametrize("track_starts", [(None, None), (100.5, 100.0)])
+def test_stereo_fails_and_leaves_no_file_when_neither_track_holds_any_audio(recording_of, capsys, track_starts):
+    recording = recording_of(
+        mic=NO_AUDIO, system=NO_AUDIO, name="2026-10-10_1946_sprint-planning", track_starts=track_starts
+    )
+
+    exit_status = stereo()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        "the Recording holds no audio: both of its Tracks are empty.\n"
+    )
+    assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
+
+
+def test_a_track_that_holds_no_audio_beside_one_that_does_is_a_silent_channel(recording_of):
+    recording = recording_of(mic=NO_AUDIO, system=tone(1))
+
+    exit_status = stereo()
+
+    assert exit_status == 0
+    left, right = channels_of(recording / "stereo.flac")
+    assert len(left) == len(right) == 1 * RATE
+    assert not left.any()
+    assert pitch_of(right) == pytest.approx(1000, abs=2)
+
+
+@pytest.mark.parametrize(
+    "track_starts, problem",
+    [
+        (("soon", 100.0), 'gives the start of the mic track as "soon", which is not a number'),
+        ((100.0, [100.0]), "gives the start of the system track as [100.0], which is not a number"),
+        ((float("nan"), 100.0), "gives the start of the mic track as NaN, which is not a number"),
+    ],
+)
+def test_stereo_fails_when_a_track_start_in_the_metadata_file_is_not_a_number_naming_the_file_and_the_problem(
+    recording_of, capsys, track_starts, problem
+):
+    recording = recording_of(
+        mic=tone(1), system=tone(1), name="2026-10-10_1946_sprint-planning", track_starts=track_starts
+    )
+
+    exit_status = stereo()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"the metadata file {recording / 'recording.json'} {problem}.\n"
+    )
+    assert not (recording / "stereo.flac").exists()
+
+
+def test_stereo_fails_when_the_track_starts_in_the_metadata_file_are_not_a_start_for_each_track(recording_of, capsys):
+    recording = recording_of(mic=tone(1), system=tone(1), name="2026-10-10_1946_sprint-planning")
+    metadata = json.loads((recording / "recording.json").read_text())
+    (recording / "recording.json").write_text(json.dumps({**metadata, "track_starts": [100.0, 100.25]}))
+
+    exit_status = stereo()
+
+    assert exit_status == 1
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"the metadata file {recording / 'recording.json'} gives the Track starts as [100.0, 100.25],"
+        " which is not a start for each Track.\n"
+    )
+    assert not (recording / "stereo.flac").exists()
 
 
 def test_stereo_fails_when_there_is_no_recording_of_that_name(make_recording, capsys):

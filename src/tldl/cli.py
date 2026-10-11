@@ -7,12 +7,11 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import unquote
 
 from tldl.capture import Capture, CaptureNotLaunched
 from tldl.configuration import SYSTEM_DEFAULT_MICROPHONE, UnreadableConfiguration, read_configuration
 from tldl.engines import ENGINES
-from tldl.recording import NoRecording, Recording
+from tldl.recording import NoRecording, Recording, UnreadableMetadata
 from tldl.status_line import status_line
 from tldl.stereo_file import StereoFileNotMade, make_stereo_file
 from tldl.track import UnreadableTrack, track_length
@@ -62,7 +61,8 @@ def main(command_line: list[str] | None = None) -> int:
         )
     if arguments.command == "stereo":
         return stereo(configuration.recordings_root, arguments.recording)
-    microphone = arguments.microphone or configuration.microphone
+    # A flag that was given wins, an empty one too: that is a name no microphone has.
+    microphone = configuration.microphone if arguments.microphone is None else arguments.microphone
     return record(
         configuration.recordings_root,
         arguments.title,
@@ -99,7 +99,7 @@ def record(recordings_root: Path, title: str | None, microphone: str | None) -> 
         elif event.name == "microphone":
             sample_rate = event.fields.get("sample-rate")
             recording.note_microphone(
-                unquote(event.fields["name"]),
+                event.fields["name"],
                 event.fields.get("transport"),
                 int(sample_rate) if sample_rate else None,
             )
@@ -147,7 +147,7 @@ def transcribe(recordings_root: Path, name: str | None, engine_name: str, langua
             mic_offset + track_length(recording.mic_track),
             system_offset + track_length(recording.system_track),
         )
-    except (NoRecording, UnreadableTrack) as problem:
+    except (NoRecording, UnreadableMetadata, UnreadableTrack) as problem:
         print(f"Cannot transcribe: {problem}.", file=sys.stderr)
         return 1
 

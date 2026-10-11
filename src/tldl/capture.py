@@ -33,8 +33,9 @@ Stop signal
 
 Standard output
     One event per line, UTF-8: the event's name, then zero or more `key=value` fields, all separated by
-    single spaces. A value holds no spaces. A reader ignores events and fields it does not know, so new
-    ones can be added without breaking it.
+    single spaces. A value holds no spaces: one that could is percent-encoded as in a URL, and a reader
+    decodes every value. A reader ignores events and fields it does not know, so new ones can be added
+    without breaking it.
 
     started
         Both Tracks are being written.
@@ -52,8 +53,8 @@ Standard output
     microphone name=<name> transport=<word> sample-rate=<hertz>
         The microphone the mic track is taken from: the one named in the arguments, or else the system
         default microphone when capture started.
-        `name` is what the system calls the device, percent-encoded as in a URL, since a value holds no
-        spaces. `transport` is how the device is connected, one of the words `output-route` uses.
+        `name` is what the system calls the device, percent-encoded. `transport` is how the device is
+        connected, one of the words `output-route` uses.
         `sample-rate` is the rate the device delivers audio at, which is also the mic track's.
 
     level mic=<level> system=<level>
@@ -88,6 +89,7 @@ import subprocess
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote
 
 PACKAGED_CAPTURE_PROGRAM = Path(__file__).parent / "bin" / "tldl-capture"
 """Where `make install` puts the capture binary inside the package."""
@@ -108,7 +110,10 @@ class Event:
 
 def parse_event(line: str) -> Event:
     name, _, text = line.strip().partition(" ")
-    fields = dict(field.split("=", 1) for field in text.split() if "=" in field)
+    # Every value is decoded: decoding leaves one that was not percent-encoded as it is.
+    fields = {
+        key: unquote(value) for key, _, value in (field.partition("=") for field in text.split() if "=" in field)
+    }
     return Event(name, fields, text)
 
 

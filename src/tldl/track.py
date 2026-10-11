@@ -13,10 +13,6 @@ class UnreadableTrack(Exception):
     """A Track's audio could not be read. The message says why in words fit for the user."""
 
 
-QUIETEST_LOUDNESS = -70.0
-"""The lowest loudness `track_loudness` reports, in LUFS: the level below which the measure hears nothing."""
-
-
 def track_length(track: Path) -> float:
     """How many seconds of audio `track` holds, found by decoding it to its end.
 
@@ -30,19 +26,31 @@ def track_length(track: Path) -> float:
     return int(microseconds[-1]) / 1_000_000
 
 
-def track_loudness(track: Path) -> float:
-    """How loud `track` is taken as a whole, in LUFS: its integrated loudness by EBU R 128.
+def track_holds_audio(track: Path) -> bool:
+    """Whether `track` holds any audio at all. The Track of a Recording killed in its first moments is a
+    header with nothing after it: a file that can be read, and holds none."""
+    lengths = _decoded(track, ["-progress", "pipe:1"], "out_time_us")
+    return any(length.isdigit() and int(length) > 0 for length in lengths)
 
-    The measure leaves out the stretches where nothing sounds, so a Track with a few words in a long
-    silence is as loud as its words. A Track that never rises above `QUIETEST_LOUDNESS`, or is too short
-    to measure, is reported as that quiet.
+
+LOUDNESS_MOMENTS_A_SECOND = 10
+"""How many values `track_momentary_loudness` gives for each second of a Track."""
+
+
+def track_momentary_loudness(track: Path) -> list[float]:
+    """How loud `track` is from moment to moment, in LUFS: its momentary loudness by EBU R 128.
+
+    There is one value for each tenth of a second of the Track, in order: the loudness of the 0.4
+    seconds that end there. Before 0.4 seconds have passed, and where the Track holds digital silence,
+    the value is far below that of any sound, under -120. A Track shorter than a tenth of a second has
+    none.
     """
-    # The loudness of the Track so far is printed for every tenth of a second of it; the last one is
-    # the loudness of the whole.
-    so_far = _decoded(
-        track, ["-af", "ebur128=metadata=1,ametadata=mode=print:key=lavfi.r128.I:file=-"], "lavfi.r128.I"
-    )
-    return max(float(so_far[-1]), QUIETEST_LOUDNESS) if so_far else QUIETEST_LOUDNESS
+    return [
+        float(loudness)
+        for loudness in _decoded(
+            track, ["-af", "ebur128=metadata=1,ametadata=mode=print:key=lavfi.r128.M:file=-"], "lavfi.r128.M"
+        )
+    ]
 
 
 def _decoded(track: Path, reporting: list[str], key: str) -> list[str]:
@@ -50,14 +58,23 @@ def _decoded(track: Path, reporting: list[str], key: str) -> list[str]:
     `key=value` lines on its output; returns the values reported for `key`, in order."""
     if shutil.which("ffmpeg") is None:
         raise UnreadableTrack("ffmpeg is needed to read the Tracks and was not found on the PATH")
+    # The file is looked at here, because ffmpeg's own words are no reason to give: for a file with
+    # nothing in it, and for one that is not audio, the last thing it writes is about the output it
+    # could not make and says nothing of the Track.
+    try:
+        with open(track, "rb") as content:
+            empty = not content.read(1)
+    except OSError as problem:
+        raise UnreadableTrack(f"could not read {track}: {problem.strerror}") from problem
+    if empty:
+        raise UnreadableTrack(f"could not read {track}: the file is empty")
     decoding = subprocess.run(
         ["ffmpeg", "-nostdin", "-v", "error", "-i", track, *reporting, "-f", "null", "-"],
         capture_output=True,
         text=True,
     )
     if decoding.returncode != 0:
-        reason = decoding.stderr.strip().splitlines()[-1:] or ["ffmpeg could not decode it"]
-        raise UnreadableTrack(f"could not read {track}: {reason[0]}")
+        raise UnreadableTrack(f"could not read {track}: ffmpeg could not decode it")
     return [
         value for name, _, value in (line.partition("=") for line in decoding.stdout.splitlines()) if name == key
     ]
