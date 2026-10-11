@@ -344,22 +344,30 @@ def test_stereo_fails_when_a_track_is_missing_naming_the_recording_and_the_probl
     exit_status = stereo()
 
     assert exit_status == 1
-    said = capsys.readouterr().err
-    assert f"Cannot make the stereo file of 2026-10-10_1946_sprint-planning: could not read {recording / track}" in said
-    assert "No such file or directory" in said
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"could not read {recording / track}: No such file or directory.\n"
+    )
     assert not (recording / "stereo.flac").exists()
 
 
 @pytest.mark.parametrize("track", ["mic.flac", "system.flac"])
-def test_stereo_fails_when_a_track_cannot_be_read_naming_the_recording_and_the_problem(recording_of, capsys, track):
+@pytest.mark.parametrize(
+    "what_the_track_holds, reason", [("not audio", "ffmpeg could not decode it"), ("", "the file is empty")]
+)
+def test_stereo_fails_when_a_track_cannot_be_read_naming_the_recording_and_the_problem(
+    recording_of, capsys, track, what_the_track_holds, reason
+):
     recording = recording_of(mic=tone(1), system=tone(1), name="2026-10-10_1946_sprint-planning")
-    (recording / track).write_text("not audio")
+    (recording / track).write_text(what_the_track_holds)
 
     exit_status = stereo()
 
     assert exit_status == 1
-    said = capsys.readouterr().err
-    assert f"Cannot make the stereo file of 2026-10-10_1946_sprint-planning: could not read {recording / track}" in said
+    assert capsys.readouterr().err == (
+        "Cannot make the stereo file of 2026-10-10_1946_sprint-planning: "
+        f"could not read {recording / track}: {reason}.\n"
+    )
     assert sorted(file.name for file in recording.iterdir()) == ["mic.flac", "recording.json", "system.flac"]
 
 

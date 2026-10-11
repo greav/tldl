@@ -50,14 +50,23 @@ def _decoded(track: Path, reporting: list[str], key: str) -> list[str]:
     `key=value` lines on its output; returns the values reported for `key`, in order."""
     if shutil.which("ffmpeg") is None:
         raise UnreadableTrack("ffmpeg is needed to read the Tracks and was not found on the PATH")
+    # The file is looked at here, because ffmpeg's own words are no reason to give: for a file with
+    # nothing in it, and for one that is not audio, the last thing it writes is about the output it
+    # could not make and says nothing of the Track.
+    try:
+        with open(track, "rb") as content:
+            empty = not content.read(1)
+    except OSError as problem:
+        raise UnreadableTrack(f"could not read {track}: {problem.strerror}") from problem
+    if empty:
+        raise UnreadableTrack(f"could not read {track}: the file is empty")
     decoding = subprocess.run(
         ["ffmpeg", "-nostdin", "-v", "error", "-i", track, *reporting, "-f", "null", "-"],
         capture_output=True,
         text=True,
     )
     if decoding.returncode != 0:
-        reason = decoding.stderr.strip().splitlines()[-1:] or ["ffmpeg could not decode it"]
-        raise UnreadableTrack(f"could not read {track}: {reason[0]}")
+        raise UnreadableTrack(f"could not read {track}: ffmpeg could not decode it")
     return [
         value for name, _, value in (line.partition("=") for line in decoding.stdout.splitlines()) if name == key
     ]
