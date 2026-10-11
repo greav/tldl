@@ -1724,6 +1724,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "numpy" },
     { name = "pytest" },
 ]
 
@@ -1736,7 +1737,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
+dev = [
+    { name = "numpy", specifier = ">=2" },
+    { name = "pytest", specifier = ">=8" },
+]
 
 [[package]]
 name = "torch"
