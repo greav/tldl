@@ -90,7 +90,7 @@ and for tools that take one file. The Tracks are not changed.
   system.flac                      the system track
   recording.json                   start time, each Track's start, output route, microphone
   transcript.parakeet-v3.md        the Transcript, one per Engine
-  segments.parakeet-v3.json        what the Engine heard, including lines the echo filter removed
+  segments.parakeet-v3.json        what the Engine heard, including Segments the echo filter removed
   stereo.flac                      the stereo file, if made
 ```
 
@@ -114,7 +114,7 @@ not know is refused with a message, so a misspelt key is never silently ignored.
 ## Headphones or loudspeakers
 
 On loudspeakers the microphone hears the others too, so their words are recognised twice. An echo filter
-leaves out the lines under **Me** that copy a line under **Others**, but it does not catch everything. The
+leaves out the Segments on the mic track that copy what the others said, but it does not catch everything. The
 cleanest Transcript comes from headphones with the Mac's built-in microphone.
 
 ## Good to know
