@@ -12,9 +12,19 @@ from enum import StrEnum
 from tldl.echo_filter import echoes
 from tldl.engines import Segment
 
+LINE_PAUSE = 2.0
+"""How many seconds of silence in one Speaker's speech end a Line: a Segment that starts this long or
+longer after the Line's last Segment ends starts a new Line."""
+
+LINE_LENGTH = 30.0
+"""How many seconds long a Line gets before it ends at the first end of a sentence."""
+
+LINE_LIMIT = 60.0
+"""How many seconds long a Line gets before it ends anyway, for speech with no end of a sentence in it."""
+
 
 class Speaker(StrEnum):
-    """Who a line of a Transcript is attributed to. The labels stay in English in every Transcript."""
+    """Who a Line of a Transcript is attributed to. The labels stay in English in every Transcript."""
 
     ME = "Me"
     OTHERS = "Others"
@@ -36,10 +46,10 @@ class SpokenSegment:
 
 @dataclass(frozen=True)
 class Line:
-    """One line of a Transcript: what one Speaker said before the other spoke."""
+    """One paragraph of a Transcript: one or more consecutive Segments of one Speaker under one timecode."""
 
     start: float
-    """Seconds from the start of the Recording."""
+    """When its first Segment starts, in seconds from the start of the Recording."""
     speaker: Speaker
     text: str
 
@@ -50,7 +60,7 @@ class Transcript:
     """Every Segment of both Tracks, in the order spoken, the ones the echo filter removed included."""
     lines: list[Line]
     """The speech as it reads: the Segments the echo filter left, consecutive ones of one Speaker
-    joined into one line."""
+    joined into Lines."""
 
 
 def build_transcript(
@@ -67,7 +77,7 @@ def build_transcript(
     the Segments of both Tracks on the Recording's one timeline.
 
     The echo filter always runs: a mic-track Segment that is the microphone hearing the others is
-    marked and left out of the lines.
+    marked and left out of the Lines.
     """
     me = [_placed(segment, mic_offset) for segment in mic_segments]
     others = [_placed(segment, system_offset) for segment in system_segments]
@@ -76,7 +86,7 @@ def build_transcript(
         for segment, echo in zip(me, echoes(me, others))
     ] + [SpokenSegment(Speaker.OTHERS, segment.start, segment.end, segment.text) for segment in others]
     spoken.sort(key=lambda segment: segment.start)
-    return Transcript(spoken, _joined([segment for segment in spoken if not segment.echo]))
+    return Transcript(spoken, _lines([segment for segment in spoken if not segment.echo]))
 
 
 def _placed(segment: Segment, offset: float) -> Segment:
@@ -84,16 +94,37 @@ def _placed(segment: Segment, offset: float) -> Segment:
     return Segment(offset + segment.start, offset + segment.end, segment.text)
 
 
-def _joined(segments: Sequence[SpokenSegment]) -> list[Line]:
-    """The lines `segments` read as: each run of one Speaker's Segments as one line."""
-    lines: list[Line] = []
+def _lines(segments: Sequence[SpokenSegment]) -> list[Line]:
+    """The Lines that `segments`, in the order spoken, read as.
+
+    A Segment starts a new Line when its Speaker is not the Speaker of the Line before it, when it
+    starts `LINE_PAUSE` or longer after that Line's last Segment ends, when that Line is `LINE_LENGTH`
+    long or longer and its last Segment ends a sentence, or when that Line is `LINE_LIMIT` long or
+    longer. Otherwise it joins that Line. A Line is as long as from the start of its first Segment to
+    the end of its last, and no Segment is ever cut: one longer than `LINE_LIMIT` is a Line that long.
+
+    An Engine can give a Segment that overlaps the one before it, or one whose end lies before its
+    start. The times are taken as given: a pause below zero ends no Line.
+    """
+    runs: list[list[SpokenSegment]] = []
     for segment in segments:
-        if lines and lines[-1].speaker == segment.speaker:
-            last = lines.pop()
-            lines.append(Line(last.start, last.speaker, f"{last.text} {segment.text}"))
+        if runs and not _starts_a_line(segment, runs[-1]):
+            runs[-1].append(segment)
         else:
-            lines.append(Line(segment.start, segment.speaker, segment.text))
-    return lines
+            runs.append([segment])
+    return [Line(run[0].start, run[0].speaker, " ".join(segment.text for segment in run)) for run in runs]
+
+
+def _starts_a_line(segment: SpokenSegment, line: Sequence[SpokenSegment]) -> bool:
+    """Whether `segment` starts a new Line, given the Segments of the Line before it."""
+    last = line[-1]
+    length = last.end - line[0].start
+    return (
+        segment.speaker != last.speaker
+        or segment.start - last.end >= LINE_PAUSE
+        or (length >= LINE_LENGTH and last.text.endswith((".", "?", "!", "…")))
+        or length >= LINE_LIMIT
+    )
 
 
 def timecode(seconds: float) -> str:
@@ -105,7 +136,7 @@ def timecode(seconds: float) -> str:
 def render_transcript(
     transcript: Transcript, *, title: str, started: datetime, duration: float, language: str | None
 ) -> str:
-    """The Transcript as Markdown: a header about the Recording, then one paragraph per line.
+    """The Transcript as Markdown: a header about the Recording, then one paragraph per Line.
 
     `started` is when the Recording started, `duration` its length in seconds. `language` is shown
     when there is one to show: the Engine reported it or the user gave it.

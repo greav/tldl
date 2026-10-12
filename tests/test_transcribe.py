@@ -108,6 +108,29 @@ def test_consecutive_segments_of_one_speaker_are_joined_into_one_line(make_recor
     ]
 
 
+def test_a_long_pause_in_one_speakers_speech_starts_a_new_line_with_its_own_timecode_and_speaker(
+    make_recording, stand_in
+):
+    recording = make_recording()
+    stand_in(
+        "stand-in-large",
+        system=[
+            Segment(5.0, 7.0, "First we look at the numbers."),
+            Segment(7.5, 9.0, "Then at the plan."),
+            Segment(30.0, 31.0, "That is all from me."),
+        ],
+    )
+
+    transcribe("--engine", "stand-in-large")
+
+    assert (recording / "transcript.stand-in-large.md").read_text().endswith(
+        "\n"
+        "[00:00:05] **Others:** First we look at the numbers. Then at the plan.\n"
+        "\n"
+        "[00:00:30] **Others:** That is all from me.\n"
+    )
+
+
 def test_a_track_with_no_speech_contributes_no_lines(make_recording, stand_in):
     recording = make_recording()
     stand_in(mic=[], system=[Segment(1.0, 2.0, "Is anyone there?")])
