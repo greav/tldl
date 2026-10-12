@@ -115,10 +115,10 @@ def _lines(segments: Sequence[SpokenSegment]) -> list[Line]:
     return [Line(run[0].start, run[0].speaker, " ".join(segment.text for segment in run)) for run in runs]
 
 
-def _starts_a_line(segment: SpokenSegment, line: Sequence[SpokenSegment]) -> bool:
-    """Whether `segment` starts a new Line, given the Segments of the Line before it."""
-    last = line[-1]
-    length = last.end - line[0].start
+def _starts_a_line(segment: SpokenSegment, run: Sequence[SpokenSegment]) -> bool:
+    """Whether `segment` starts a new Line, given `run`, the Segments of the Line before it."""
+    last = run[-1]
+    length = last.end - run[0].start
     return (
         segment.speaker != last.speaker
         or segment.start - last.end >= LINE_PAUSE

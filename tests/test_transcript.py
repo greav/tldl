@@ -56,11 +56,11 @@ def test_a_pause_of_two_seconds_starts_a_new_line_and_a_shorter_one_does_not():
         system=[
             Segment(1.0, 4.0, "First the numbers."),
             Segment(5.5, 8.0, "They are up."),
-            Segment(10.0, 12.0, "Now the plan."),
+            Segment(10.5, 12.0, "Now the plan."),
         ],
     )
 
-    # A second and a half of silence, then exactly two seconds of it.
+    # A second and a half of silence, then two and a half seconds of it.
     assert lines == [
         "[00:00:01] **Others:** First the numbers. They are up.",
         "[00:00:10] **Others:** Now the plan.",
@@ -90,11 +90,11 @@ def test_a_line_thirty_seconds_long_ends_at_the_first_end_of_a_sentence_and_not_
 @pytest.mark.parametrize("mark", [".", "?", "!", "…"])
 def test_a_segment_ends_a_sentence_with_a_full_stop_a_question_mark_an_exclamation_mark_or_an_ellipsis(mark):
     lines = rendered_lines(
-        mic=[Segment(0.0, 30.0, f"Thirty seconds of talking{mark}"), Segment(30.5, 32.0, "And then more.")],
+        mic=[Segment(0.0, 35.0, f"Half a minute of talking{mark}"), Segment(35.5, 37.0, "And then more.")],
         system=[],
     )
 
-    assert lines == [f"[00:00:00] **Me:** Thirty seconds of talking{mark}", "[00:00:30] **Me:** And then more."]
+    assert lines == [f"[00:00:00] **Me:** Half a minute of talking{mark}", "[00:00:35] **Me:** And then more."]
 
 
 def test_a_line_sixty_seconds_long_ends_though_no_sentence_does():
@@ -103,14 +103,14 @@ def test_a_line_sixty_seconds_long_ends_though_no_sentence_does():
         system=[
             Segment(0.0, 20.0, "so first the numbers"),
             Segment(20.5, 40.0, "then the plan"),
-            Segment(40.5, 60.0, "then the release"),
-            Segment(60.5, 70.0, "and then the questions"),
+            Segment(40.5, 65.0, "then the release"),
+            Segment(65.5, 75.0, "and then the questions"),
         ],
     )
 
     assert lines == [
         "[00:00:00] **Others:** so first the numbers then the plan then the release",
-        "[00:01:00] **Others:** and then the questions",
+        "[00:01:05] **Others:** and then the questions",
     ]
 
 
