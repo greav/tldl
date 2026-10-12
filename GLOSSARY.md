@@ -22,7 +22,7 @@ The Track holding what the computer played.
 _Avoid_: Output, loopback, remote audio
 
 **Speaker**:
-Who a line of a Transcript is attributed to: **Me** for speech from the mic track, **Others** for speech from
+Who a Line of a Transcript is attributed to: **Me** for speech from the mic track, **Others** for speech from
 the system track.
 _Avoid_: Participant, user, remote
 
@@ -39,6 +39,11 @@ _Avoid_: Backend, transcriber, provider, model
 The text of a Recording as one Engine heard it: the Segments of both Tracks in chronological order, each
 attributed to a Speaker. A Recording has at most one Transcript per Engine.
 _Avoid_: Notes, minutes, summary
+
+**Line**:
+One paragraph of a Transcript: a stretch of one Speaker's speech under one timecode, made of one or more
+consecutive Segments of that Speaker.
+_Avoid_: Block, paragraph, turn
 
 **Stereo file**:
 One audio file holding both Tracks of a Recording: the mic track in its left channel, the system track in its
