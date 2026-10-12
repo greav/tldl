@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from stand_in_engine import StandInEngine
 
-from tldl.engines import ENGINES
+from tldl.engines import DEFAULT_ENGINE, ENGINES
 
 USERS_OWN_HOME = Path.home()
 """The home folder the suite was started in, noted before any test is given another."""
@@ -91,9 +91,9 @@ def make_recording(home, silent_track):
 
 @pytest.fixture
 def stand_in(monkeypatch):
-    """Puts a stand-in Engine under the name `name`, by default in the place of `parakeet-v3`; returns it."""
+    """Puts a stand-in Engine under the name `name`, by default in the default Engine's place; returns it."""
 
-    def put(name: str = "parakeet-v3", *, mic=(), system=(), language=None, accepts=None) -> StandInEngine:
+    def put(name: str = DEFAULT_ENGINE, *, mic=(), system=(), language=None, accepts=None) -> StandInEngine:
         engine = StandInEngine(mic, system, language, accepts)
         monkeypatch.setitem(ENGINES, name, engine)
         return engine

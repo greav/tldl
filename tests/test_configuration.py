@@ -18,7 +18,7 @@ def transcribe(*arguments: str) -> int:
 
 def test_the_engine_flag_chooses_the_engine_for_one_run(make_recording, stand_in):
     recording = make_recording()
-    default = stand_in("parakeet-v3")
+    default = stand_in()
     chosen = stand_in("stand-in-large", mic=[Segment(1.0, 2.0, "Hello.")])
 
     exit_status = transcribe("--engine", "stand-in-large")
@@ -31,7 +31,7 @@ def test_the_engine_flag_chooses_the_engine_for_one_run(make_recording, stand_in
 
 def test_an_unknown_engine_name_fails_with_a_message_listing_the_known_engines(make_recording, stand_in, capsys):
     recording = make_recording()
-    stand_in("parakeet-v3")
+    stand_in()
     stand_in("stand-in-large")
 
     exit_status = transcribe("--engine", "whisper")
@@ -54,7 +54,7 @@ def test_the_engines_are_parakeet_v3_and_whisper_large_v3(make_recording, capsys
 
 def test_transcribing_one_recording_with_two_engines_leaves_both_transcripts_side_by_side(make_recording, stand_in):
     recording = make_recording()
-    stand_in("parakeet-v3", mic=[Segment(1.0, 2.0, "As the first Engine heard it.")])
+    stand_in(mic=[Segment(1.0, 2.0, "As the first Engine heard it.")])
     stand_in("stand-in-large", mic=[Segment(1.0, 2.0, "As the second Engine heard it.")])
 
     transcribe()
@@ -63,15 +63,15 @@ def test_transcribing_one_recording_with_two_engines_leaves_both_transcripts_sid
     assert sorted(file.name for file in recording.iterdir()) == [
         "mic.flac",
         "recording.json",
-        "segments.parakeet-v3.json",
         "segments.stand-in-large.json",
+        "segments.whisper-large-v3.json",
         "system.flac",
-        "transcript.parakeet-v3.md",
         "transcript.stand-in-large.md",
+        "transcript.whisper-large-v3.md",
     ]
-    assert "As the first Engine heard it." in (recording / "transcript.parakeet-v3.md").read_text()
+    assert "As the first Engine heard it." in (recording / "transcript.whisper-large-v3.md").read_text()
     assert "As the second Engine heard it." in (recording / "transcript.stand-in-large.md").read_text()
-    assert json.loads((recording / "segments.parakeet-v3.json").read_text())["engine"] == "parakeet-v3"
+    assert json.loads((recording / "segments.whisper-large-v3.json").read_text())["engine"] == "whisper-large-v3"
     assert json.loads((recording / "segments.stand-in-large.json").read_text())["engine"] == "stand-in-large"
 
 
@@ -84,8 +84,8 @@ def test_the_lang_flag_gives_the_language_to_the_engine_and_to_the_transcript_he
     assert exit_status == 0
     assert engine.languages_given == ["ru", "ru"]
     assert engine.detected_on == []
-    assert "- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
-    assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] == "ru"
+    assert "- Language: ru\n" in (recording / "transcript.whisper-large-v3.md").read_text()
+    assert json.loads((recording / "segments.whisper-large-v3.json").read_text())["language"] == "ru"
 
 
 def test_a_language_the_engine_does_not_know_fails_before_the_engine_reads_a_track(make_recording, stand_in, capsys):
@@ -106,7 +106,7 @@ def test_a_language_the_engine_does_not_know_fails_before_the_engine_reads_a_tra
 
 def test_the_configuration_file_sets_the_default_engine(make_recording, stand_in, configure):
     recording = make_recording()
-    default = stand_in("parakeet-v3")
+    default = stand_in()
     configured = stand_in("stand-in-large", mic=[Segment(1.0, 2.0, "Hello.")])
     configure('engine = "stand-in-large"\n')
 
@@ -120,7 +120,7 @@ def test_the_configuration_file_sets_the_default_engine(make_recording, stand_in
 
 def test_the_engine_flag_wins_over_the_configuration_file(make_recording, stand_in, configure):
     recording = make_recording()
-    stand_in("parakeet-v3")
+    stand_in()
     configured = stand_in("stand-in-large")
     flagged = stand_in("stand-in-turbo")
     configure('engine = "stand-in-large"\n')
@@ -141,7 +141,7 @@ def test_the_configuration_file_sets_the_default_language(make_recording, stand_
     assert exit_status == 0
     assert engine.languages_given == ["ru", "ru"]
     assert engine.detected_on == []
-    assert "- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
+    assert "- Language: ru\n" in (recording / "transcript.whisper-large-v3.md").read_text()
 
 
 def test_the_lang_flag_wins_over_the_configuration_file(make_recording, stand_in, configure):
@@ -152,7 +152,7 @@ def test_the_lang_flag_wins_over_the_configuration_file(make_recording, stand_in
     transcribe("--lang", "en")
 
     assert engine.languages_given == ["en", "en"]
-    assert "- Language: en\n" in (recording / "transcript.parakeet-v3.md").read_text()
+    assert "- Language: en\n" in (recording / "transcript.whisper-large-v3.md").read_text()
 
 
 def test_transcribe_takes_the_latest_recording_under_the_configured_recordings_root(
@@ -167,9 +167,9 @@ def test_transcribe_takes_the_latest_recording_under_the_configured_recordings_r
     exit_status = transcribe()
 
     assert exit_status == 0
-    assert (latest / "transcript.parakeet-v3.md").exists()
-    assert not (older / "transcript.parakeet-v3.md").exists()
-    assert not (elsewhere / "transcript.parakeet-v3.md").exists()
+    assert (latest / "transcript.whisper-large-v3.md").exists()
+    assert not (older / "transcript.whisper-large-v3.md").exists()
+    assert not (elsewhere / "transcript.whisper-large-v3.md").exists()
 
 
 def test_stereo_takes_the_latest_recording_under_the_configured_recordings_root(home, make_recording, configure):
@@ -216,7 +216,7 @@ def test_a_configuration_file_that_is_not_toml_fails_with_the_file_and_the_probl
     assert f"Cannot read the configuration file {file}: " in errors
     assert "line 2" in errors
     assert engine.tracks == []
-    assert not (recording / "transcript.parakeet-v3.md").exists()
+    assert not (recording / "transcript.whisper-large-v3.md").exists()
 
 
 @pytest.mark.parametrize(
@@ -290,14 +290,20 @@ def test_record_fails_before_it_starts_when_the_configuration_file_cannot_be_rea
 
 def test_with_no_configuration_file_the_built_in_defaults_apply(home, make_recording, stand_in):
     make_recording("2026-10-10_1946")
-    engine = stand_in("parakeet-v3", mic=[Segment(1.0, 2.0, "Hello.")])
-    stand_in("stand-in-large")
+    engine = stand_in("whisper-large-v3", mic=[Segment(1.0, 2.0, "Hello.")])
+    stand_in("parakeet-v3")
 
     exit_status = transcribe()
 
     assert exit_status == 0
     assert not (home / ".config").exists()
-    assert (home / "tldl" / "2026-10-10_1946" / "transcript.parakeet-v3.md").exists()
+    assert sorted(file.name for file in (home / "tldl" / "2026-10-10_1946").iterdir()) == [
+        "mic.flac",
+        "recording.json",
+        "segments.whisper-large-v3.json",
+        "system.flac",
+        "transcript.whisper-large-v3.md",
+    ]
     assert engine.languages_given == [None, None]
 
 
@@ -305,7 +311,7 @@ def test_an_unknown_engine_name_in_the_configuration_file_fails_with_a_message_l
     make_recording, stand_in, configure, capsys
 ):
     make_recording()
-    engine = stand_in("parakeet-v3")
+    engine = stand_in()
     configure('engine = "whisper"\n')
 
     exit_status = transcribe()

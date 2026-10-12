@@ -585,7 +585,8 @@ def test_transcribe_gives_the_same_transcript_for_a_recording_with_a_stereo_file
 ):
     recording = recording_of(mic=tone(1), system=tone(4), track_starts=(100.5, 100.0))
     engine = stand_in(mic=[Segment(0.2, 0.8, "Hi.")], system=[Segment(1.5, 2.5, "Hello everyone.")])
-    transcript, segments_file = recording / "transcript.parakeet-v3.md", recording / "segments.parakeet-v3.json"
+    transcript = recording / "transcript.whisper-large-v3.md"
+    segments_file = recording / "segments.whisper-large-v3.json"
     cli.main(["transcribe"])
     without_a_stereo_file = transcript.read_text(), segments_file.read_text()
     stereo()
