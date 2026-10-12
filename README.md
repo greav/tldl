@@ -69,8 +69,8 @@ Running the same Engine again replaces its Transcript.
 
 | Engine | Language | Notes |
 | --- | --- | --- |
-| `parakeet-v3` (default) | Takes none; writes what it hears | Faster |
-| `whisper-large-v3` | Detected once per Recording, or given with `--lang` | Slower. Given one language, it tends to write words spoken in another in that language |
+| `parakeet-v3` | Takes none; writes what it hears | Faster |
+| `whisper-large-v3` (default) | Detected once per Recording, or given with `--lang` | Slower. Given one language, it tends to write words spoken in another in that language |
 
 ### Stereo file
 
@@ -89,8 +89,8 @@ and for tools that take one file. The Tracks are not changed.
   mic.flac                         the mic track
   system.flac                      the system track
   recording.json                   start time, each Track's start, output route, microphone
-  transcript.parakeet-v3.md        the Transcript, one per Engine
-  segments.parakeet-v3.json        what the Engine heard, including Segments the echo filter removed
+  transcript.whisper-large-v3.md   the Transcript, one per Engine
+  segments.whisper-large-v3.json   what the Engine heard, including Segments the echo filter removed
   stereo.flac                      the stereo file, if made
 ```
 
@@ -103,7 +103,7 @@ Optional, in `~/.config/tldl/config.toml`. Every key may be left out, and a flag
 
 ```toml
 recordings_root = "~/tldl"
-engine = "parakeet-v3"
+engine = "whisper-large-v3"
 language = "ru"
 microphone = "MacBook Pro Microphone"
 ```

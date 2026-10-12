@@ -17,4 +17,4 @@ ENGINES: dict[str, Engine] = {
 }
 """Every Engine, under the name that chooses it and that its Transcripts carry in their file names."""
 
-DEFAULT_ENGINE = "parakeet-v3"
+DEFAULT_ENGINE = "whisper-large-v3"

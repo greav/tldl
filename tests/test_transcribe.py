@@ -1,4 +1,4 @@
-"""`tldl transcribe`, driven from the outside with a stand-in Engine in place of `parakeet-v3`."""
+"""`tldl transcribe`, driven from the outside with a stand-in Engine in place of the default Engine."""
 
 import json
 import shutil
@@ -38,7 +38,7 @@ def test_transcribe_writes_a_transcript_with_a_timecode_and_a_speaker_on_each_li
     exit_status = transcribe()
 
     assert exit_status == 0
-    assert lines_of(recording / "transcript.parakeet-v3.md") == [
+    assert lines_of(recording / "transcript.whisper-large-v3.md") == [
         "[00:00:01] **Others:** Hello everyone.",
         "[00:00:04] **Me:** Hi, can you hear me?",
         "[01:02:05] **Others:** Loud and clear.",
@@ -58,7 +58,7 @@ def test_the_transcript_opens_with_a_header_giving_the_date_start_time_and_durat
 
     transcribe()
 
-    assert (recording / "transcript.parakeet-v3.md").read_text() == (
+    assert (recording / "transcript.whisper-large-v3.md").read_text() == (
         "# 2026-10-10_1946_sprint-planning\n"
         "\n"
         "- Date: 2026-10-10\n"
@@ -79,7 +79,7 @@ def test_lines_of_both_tracks_are_in_the_order_spoken_whichever_track_began_firs
 
     transcribe()
 
-    assert lines_of(recording / "transcript.parakeet-v3.md") == [
+    assert lines_of(recording / "transcript.whisper-large-v3.md") == [
         "[00:00:03] **Others:** First.",
         "[00:00:03] **Me:** Second.",
         "[00:00:04] **Others:** Third.",
@@ -101,7 +101,7 @@ def test_consecutive_segments_of_one_speaker_are_joined_into_one_line(make_recor
 
     transcribe()
 
-    assert lines_of(recording / "transcript.parakeet-v3.md") == [
+    assert lines_of(recording / "transcript.whisper-large-v3.md") == [
         "[00:00:05] **Others:** First we look at the numbers. Then at the plan.",
         "[00:00:20] **Me:** Sounds good.",
         "[00:00:30] **Others:** Great. See you.",
@@ -137,7 +137,7 @@ def test_a_track_with_no_speech_contributes_no_lines(make_recording, stand_in):
 
     transcribe()
 
-    assert lines_of(recording / "transcript.parakeet-v3.md") == ["[00:00:01] **Others:** Is anyone there?"]
+    assert lines_of(recording / "transcript.whisper-large-v3.md") == ["[00:00:01] **Others:** Is anyone there?"]
 
 
 def test_the_segments_file_holds_every_segment_of_both_tracks_with_its_speaker(make_recording, stand_in):
@@ -149,8 +149,8 @@ def test_the_segments_file_holds_every_segment_of_both_tracks_with_its_speaker(m
 
     transcribe()
 
-    assert json.loads((recording / "segments.parakeet-v3.json").read_text()) == {
-        "engine": "parakeet-v3",
+    assert json.loads((recording / "segments.whisper-large-v3.json").read_text()) == {
+        "engine": "whisper-large-v3",
         "language": None,
         "duration": 10.5,
         "segments": [
@@ -171,11 +171,11 @@ def test_an_echo_is_left_out_of_the_transcript_and_marked_in_the_segments_file(m
 
     transcribe()
 
-    assert lines_of(recording / "transcript.parakeet-v3.md") == [
+    assert lines_of(recording / "transcript.whisper-large-v3.md") == [
         "[00:00:01] **Others:** Hello everyone, shall we start?",
         "[00:00:04] **Me:** Yes, let's start.",
     ]
-    assert json.loads((recording / "segments.parakeet-v3.json").read_text())["segments"] == [
+    assert json.loads((recording / "segments.whisper-large-v3.json").read_text())["segments"] == [
         {"speaker": "Others", "start": 1.0, "end": 2.5, "text": "Hello everyone, shall we start?", "echo": False},
         {"speaker": "Me", "start": 1.2, "end": 2.6, "text": "Hello everyone, shall we start?", "echo": True},
         {"speaker": "Me", "start": 4.0, "end": 5.5, "text": "Yes, let's start.", "echo": False},
@@ -197,8 +197,8 @@ def test_the_header_gives_no_language_when_the_engine_detected_none(make_recordi
 
     transcribe()
 
-    assert "Language" not in (recording / "transcript.parakeet-v3.md").read_text()
-    assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] is None
+    assert "Language" not in (recording / "transcript.whisper-large-v3.md").read_text()
+    assert json.loads((recording / "segments.whisper-large-v3.json").read_text())["language"] is None
 
 
 def test_the_header_gives_the_language_the_engine_detected(make_recording, stand_in):
@@ -207,8 +207,8 @@ def test_the_header_gives_the_language_the_engine_detected(make_recording, stand
 
     transcribe()
 
-    assert "- Duration: 00:00:03\n- Language: ru\n" in (recording / "transcript.parakeet-v3.md").read_text()
-    assert json.loads((recording / "segments.parakeet-v3.json").read_text())["language"] == "ru"
+    assert "- Duration: 00:00:03\n- Language: ru\n" in (recording / "transcript.whisper-large-v3.md").read_text()
+    assert json.loads((recording / "segments.whisper-large-v3.json").read_text())["language"] == "ru"
 
 
 def test_the_language_is_detected_once_on_both_tracks_together_and_each_is_recognised_in_it(
@@ -235,9 +235,9 @@ def test_transcribe_with_no_argument_takes_the_recording_that_started_last(make_
     exit_status = transcribe()
 
     assert exit_status == 0
-    assert (latest / "transcript.parakeet-v3.md").exists()
-    assert not (earlier / "transcript.parakeet-v3.md").exists()
-    assert not (older / "transcript.parakeet-v3.md").exists()
+    assert (latest / "transcript.whisper-large-v3.md").exists()
+    assert not (earlier / "transcript.whisper-large-v3.md").exists()
+    assert not (older / "transcript.whisper-large-v3.md").exists()
 
 
 @pytest.mark.parametrize("how_it_is_named", ["by its name", "by its folder"])
@@ -249,9 +249,9 @@ def test_transcribe_with_an_argument_takes_the_recording_named(make_recording, s
     exit_status = transcribe(named.name if how_it_is_named == "by its name" else str(named))
 
     assert exit_status == 0
-    assert (named / "transcript.parakeet-v3.md").exists()
-    assert (named / "segments.parakeet-v3.json").exists()
-    assert not (latest / "transcript.parakeet-v3.md").exists()
+    assert (named / "transcript.whisper-large-v3.md").exists()
+    assert (named / "segments.whisper-large-v3.json").exists()
+    assert not (latest / "transcript.whisper-large-v3.md").exists()
 
 
 @pytest.mark.parametrize(
@@ -273,8 +273,8 @@ def test_transcribe_takes_a_relative_path_to_the_recordings_folder(
     exit_status = transcribe(argument)
 
     assert exit_status == 0
-    assert (named / "transcript.parakeet-v3.md").read_text().startswith("# 2026-10-09_1000_retro\n")
-    assert not (latest / "transcript.parakeet-v3.md").exists()
+    assert (named / "transcript.whisper-large-v3.md").read_text().startswith("# 2026-10-09_1000_retro\n")
+    assert not (latest / "transcript.whisper-large-v3.md").exists()
 
 
 def test_transcribe_says_where_the_transcript_and_the_segments_file_are(make_recording, stand_in, capsys):
@@ -284,8 +284,8 @@ def test_transcribe_says_where_the_transcript_and_the_segments_file_are(make_rec
     transcribe()
 
     output = capsys.readouterr().out
-    assert f"Transcript: {recording / 'transcript.parakeet-v3.md'}" in output
-    assert f"Segments: {recording / 'segments.parakeet-v3.json'}" in output
+    assert f"Transcript: {recording / 'transcript.whisper-large-v3.md'}" in output
+    assert f"Segments: {recording / 'segments.whisper-large-v3.json'}" in output
 
 
 def test_transcribing_again_replaces_the_transcript_and_the_segments_file(make_recording, stand_in):
@@ -296,15 +296,15 @@ def test_transcribing_again_replaces_the_transcript_and_the_segments_file(make_r
 
     transcribe()
 
-    assert lines_of(recording / "transcript.parakeet-v3.md") == ["[00:00:01] **Me:** The second hearing."]
-    [segment] = json.loads((recording / "segments.parakeet-v3.json").read_text())["segments"]
+    assert lines_of(recording / "transcript.whisper-large-v3.md") == ["[00:00:01] **Me:** The second hearing."]
+    [segment] = json.loads((recording / "segments.whisper-large-v3.json").read_text())["segments"]
     assert segment["text"] == "The second hearing."
     assert sorted(file.name for file in recording.iterdir()) == [
         "mic.flac",
         "recording.json",
-        "segments.parakeet-v3.json",
+        "segments.whisper-large-v3.json",
         "system.flac",
-        "transcript.parakeet-v3.md",
+        "transcript.whisper-large-v3.md",
     ]
 
 
@@ -327,10 +327,10 @@ def test_an_interrupted_recording_can_be_transcribed(home, stand_in):
     exit_status = transcribe()
 
     assert exit_status == 0
-    transcript = recording / "transcript.parakeet-v3.md"
+    transcript = recording / "transcript.whisper-large-v3.md"
     assert "- Duration: 00:00:03\n" in transcript.read_text()
     assert lines_of(transcript) == ["[00:00:01] **Others:** Hello.", "[00:00:02] **Me:** Can you hear me?"]
-    assert json.loads((recording / "segments.parakeet-v3.json").read_text())["duration"] == 3.744
+    assert json.loads((recording / "segments.whisper-large-v3.json").read_text())["duration"] == 3.744
 
 
 def test_transcribe_fails_when_there_is_no_recording_of_that_name(make_recording, stand_in, capsys):
@@ -368,7 +368,7 @@ def test_transcribe_fails_before_the_engine_runs_when_a_track_cannot_be_read(
     assert exit_status == 1
     assert capsys.readouterr().err == f"Cannot transcribe: could not read {recording / 'system.flac'}: {reason}.\n"
     assert engine.tracks == []
-    assert not (recording / "transcript.parakeet-v3.md").exists()
+    assert not (recording / "transcript.whisper-large-v3.md").exists()
 
 
 def test_transcribe_fails_before_the_engine_runs_when_a_track_is_missing(make_recording, stand_in, capsys):
@@ -399,7 +399,7 @@ def test_transcribe_fails_before_the_engine_runs_when_a_track_start_in_the_metad
         ' gives the start of the system track as "soon", which is not a number.\n'
     )
     assert engine.tracks == []
-    assert not (recording / "transcript.parakeet-v3.md").exists()
+    assert not (recording / "transcript.whisper-large-v3.md").exists()
 
 
 def test_transcribe_fails_with_the_reason_when_ffmpeg_is_missing(make_recording, stand_in, monkeypatch, capsys):
