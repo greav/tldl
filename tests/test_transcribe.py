@@ -113,17 +113,16 @@ def test_a_long_pause_in_one_speakers_speech_starts_a_new_line_with_its_own_time
 ):
     recording = make_recording()
     stand_in(
-        "stand-in-large",
         system=[
             Segment(5.0, 7.0, "First we look at the numbers."),
             Segment(7.5, 9.0, "Then at the plan."),
             Segment(30.0, 31.0, "That is all from me."),
-        ],
+        ]
     )
 
-    transcribe("--engine", "stand-in-large")
+    transcribe()
 
-    assert (recording / "transcript.stand-in-large.md").read_text().endswith(
+    assert (recording / "transcript.whisper-large-v3.md").read_text().endswith(
         "\n"
         "[00:00:05] **Others:** First we look at the numbers. Then at the plan.\n"
         "\n"
