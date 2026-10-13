@@ -46,7 +46,7 @@ class SpokenSegment:
 
 @dataclass(frozen=True)
 class Line:
-    """One paragraph of a Transcript: one or more consecutive Segments of one Speaker under one timecode."""
+    """A stretch of one Speaker's speech in a Transcript: one or more consecutive Segments under one timecode."""
 
     start: float
     """When its first Segment starts, in seconds from the start of the Recording."""

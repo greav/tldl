@@ -41,9 +41,14 @@ attributed to a Speaker. A Recording has at most one Transcript per Engine.
 _Avoid_: Notes, minutes, summary
 
 **Line**:
-One paragraph of a Transcript: a stretch of one Speaker's speech under one timecode, made of one or more
-consecutive Segments of that Speaker.
+A stretch of one Speaker's speech in a Transcript under one timecode, made of one or more consecutive
+Segments of that Speaker.
 _Avoid_: Block, paragraph, turn
+
+**Timecode**:
+Where a Line begins in its Recording: the time from the start of the Recording to the start of the Line's
+first Segment, written `[HH:MM:SS]`.
+_Avoid_: Timestamp, time
 
 **Stereo file**:
 One audio file holding both Tracks of a Recording: the mic track in its left channel, the system track in its
