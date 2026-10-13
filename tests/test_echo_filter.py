@@ -267,7 +267,8 @@ def test_a_copy_is_looked_for_where_the_tracks_lie_on_the_recordings_timeline():
     ]
 
     assert rendered_lines(mic, system, mic_offset=5.0, system_offset=0.0) == [
-        "[00:00:10] **Others:** We ship the release on Friday. I will write the release notes.",
+        "[00:00:10] **Others:** We ship the release on Friday.",
+        "[00:00:20] **Others:** I will write the release notes.",
         "[00:00:25] **Me:** I will write the release notes.",
     ]
     assert removed_texts(mic, system, mic_offset=5.0, system_offset=0.0) == ["We ship the release on Friday."]

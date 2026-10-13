@@ -2,6 +2,8 @@
 
 from datetime import datetime
 
+import pytest
+
 from tldl.engines import Segment
 from tldl.transcript import build_transcript, render_transcript
 
@@ -48,6 +50,120 @@ def test_someone_speaking_over_the_other_splits_the_others_line_in_two():
     ]
 
 
+def test_a_pause_of_two_seconds_starts_a_new_line_and_a_shorter_one_does_not():
+    lines = rendered_lines(
+        mic=[],
+        system=[
+            Segment(1.0, 4.0, "First the numbers."),
+            Segment(5.5, 8.0, "They are up."),
+            Segment(10.5, 12.0, "Now the plan."),
+        ],
+    )
+
+    # A second and a half of silence, then two and a half seconds of it.
+    assert lines == [
+        "[00:00:01] **Others:** First the numbers. They are up.",
+        "[00:00:10] **Others:** Now the plan.",
+    ]
+
+
+def test_a_line_thirty_seconds_long_ends_at_the_first_end_of_a_sentence_and_not_before():
+    lines = rendered_lines(
+        mic=[],
+        system=[
+            Segment(100.0, 112.0, "We looked at the numbers,"),
+            Segment(112.5, 125.0, "and they are up."),
+            Segment(125.5, 133.0, "So we keep the plan and"),
+            Segment(133.5, 140.0, "ship on Friday."),
+            Segment(140.5, 145.0, "Any questions?"),
+        ],
+    )
+
+    # The sentence that ends 25 s into the Line does not end it: the Line is not long enough yet.
+    # 33 s into it the Line is long enough but in the middle of a sentence.
+    assert lines == [
+        "[00:01:40] **Others:** We looked at the numbers, and they are up. So we keep the plan and ship on Friday.",
+        "[00:02:20] **Others:** Any questions?",
+    ]
+
+
+@pytest.mark.parametrize("mark", [".", "?", "!", "…"])
+def test_a_segment_ends_a_sentence_with_a_full_stop_a_question_mark_an_exclamation_mark_or_an_ellipsis(mark):
+    lines = rendered_lines(
+        mic=[Segment(0.0, 35.0, f"Half a minute of talking{mark}"), Segment(35.5, 37.0, "And then more.")],
+        system=[],
+    )
+
+    assert lines == [f"[00:00:00] **Me:** Half a minute of talking{mark}", "[00:00:35] **Me:** And then more."]
+
+
+def test_a_line_sixty_seconds_long_ends_though_no_sentence_does():
+    lines = rendered_lines(
+        mic=[],
+        system=[
+            Segment(0.0, 20.0, "so first the numbers"),
+            Segment(20.5, 40.0, "then the plan"),
+            Segment(40.5, 65.0, "then the release"),
+            Segment(65.5, 75.0, "and then the questions"),
+        ],
+    )
+
+    assert lines == [
+        "[00:00:00] **Others:** so first the numbers then the plan then the release",
+        "[00:01:05] **Others:** and then the questions",
+    ]
+
+
+def test_a_segment_longer_than_a_minute_is_one_line_whole():
+    lines = rendered_lines(
+        mic=[Segment(0.0, 95.0, "A long story told in one breath"), Segment(95.5, 97.0, "and how it ended.")],
+        system=[],
+    )
+
+    assert lines == ["[00:00:00] **Me:** A long story told in one breath", "[00:01:35] **Me:** and how it ended."]
+
+
+def test_short_segments_spoken_close_together_make_one_line():
+    lines = rendered_lines(
+        mic=[],
+        system=[
+            Segment(1.0, 1.4, "Yes."),
+            Segment(1.6, 2.0, "Right."),
+            Segment(2.5, 3.5, "Go on."),
+            Segment(5.0, 6.0, "I see!"),
+        ],
+    )
+
+    assert lines == ["[00:00:01] **Others:** Yes. Right. Go on. I see!"]
+
+
+def test_an_echo_is_in_no_line_and_ends_none():
+    # The microphone's copy starts between the others' two Segments and is the user's only Segment.
+    lines = rendered_lines(
+        mic=[Segment(10.2, 12.6, "We ship the release on Friday.")],
+        system=[
+            Segment(10.0, 12.5, "We ship the release on Friday."),
+            Segment(13.0, 15.0, "Then we write the notes."),
+        ],
+    )
+
+    assert lines == ["[00:00:10] **Others:** We ship the release on Friday. Then we write the notes."]
+
+
+def test_a_segment_that_overlaps_the_one_before_it_or_ends_before_it_starts_joins_the_line():
+    lines = rendered_lines(
+        mic=[],
+        system=[
+            Segment(1.0, 5.0, "One moment,"),
+            Segment(4.0, 6.0, "let me share my screen."),
+            Segment(6.5, 6.2, "There."),
+            Segment(7.0, 8.0, "Can you see it?"),
+        ],
+    )
+
+    assert lines == ["[00:00:01] **Others:** One moment, let me share my screen. There. Can you see it?"]
+
+
 def test_each_track_is_placed_on_the_timeline_by_how_long_after_the_start_it_begins():
     lines = rendered_lines(
         mic=[Segment(10.0, 11.0, "Asked at ten seconds into the mic track.")],
@@ -65,9 +181,7 @@ def test_each_track_is_placed_on_the_timeline_by_how_long_after_the_start_it_beg
 def test_a_timecode_counts_hours_minutes_and_whole_seconds_from_the_start():
     lines = rendered_lines(mic=[Segment(59.99, 61.0, "One."), Segment(7384.2, 7385.0, "Two.")], system=[])
 
-    # Joined into one line, which carries the first Segment's timecode.
-    assert lines == ["[00:00:59] **Me:** One. Two."]
-    assert rendered_lines(mic=[], system=[Segment(7384.2, 7385.0, "Two.")]) == ["[02:03:04] **Others:** Two."]
+    assert lines == ["[00:00:59] **Me:** One.", "[02:03:04] **Me:** Two."]
 
 
 def test_a_recording_with_no_speech_renders_as_its_header_alone():
