@@ -8,6 +8,7 @@ this file only says where.
 
 - Structure, naming, branches: `AGENTS.md`
 - Domain vocabulary and ADR conflicts: `docs/agents/domain.md`
+- Trial runs on the user's machine: `docs/agents/trial-runs.md`
 
 ## Project-specific rules
 
